@@ -159,6 +159,7 @@ h1, h2, h3, h4, h5, h6 {
   transition: all 0.2s;
   border-bottom: 3px solid transparent;
   font-family: 'Inter', sans-serif;
+  flex-shrink: 0;
 }
 
 .master-tab:hover {
@@ -315,6 +316,7 @@ h1, h2, h3, h4, h5, h6 {
   transition: all 0.2s;
   border-bottom: 3px solid transparent;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tab-btn:hover {
