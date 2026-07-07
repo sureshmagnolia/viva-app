@@ -509,3 +509,68 @@ body.print-mode #root {
     display: none !important;
   }
 }
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 0.75rem;
+    gap: 1rem;
+  }
+  
+  .master-nav {
+    padding: 0 0.5rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .master-tab {
+    padding: 1rem;
+    font-size: 0.95rem;
+  }
+  
+  .header {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 1rem;
+    padding: 1.25rem 1rem;
+  }
+  
+  .header > div:first-child {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .header-title {
+    font-size: 1.25rem;
+    text-align: center;
+  }
+  
+  .header button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .form-grid {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+  
+  .tabs-header {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+  
+  .tabs-header::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+  
+  .tab-btn {
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+  }
+  
+  .tab-content {
+    padding: 1rem !important;
+  }
+}

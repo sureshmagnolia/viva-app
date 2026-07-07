@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, Copy } from 'lucide-react';
+import { Plus, Trash2, Copy, User } from 'lucide-react';
 
 const CompStudentsTab = ({ students, setStudents, handleChange }) => {
   const getDefaultGrades = () => {
@@ -55,65 +55,82 @@ const CompStudentsTab = ({ students, setStudents, handleChange }) => {
 
   return (
     <div className="animate-fade-in">
-      <div className="table-container">
-        <table className="marks-table">
-          <thead>
-            <tr>
-              <th style={{ width: '50px' }}>#</th>
-              <th>Register Number</th>
-              <th>Name of the Candidate</th>
-              <th style={{ width: '180px' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {students.map((student, index) => (
-              <tr key={student.id}>
-                <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{index + 1}</td>
-                <td className="input-cell" style={{ width: '250px' }}>
-                  <input
-                    type="text"
-                    className="table-input text-left"
-                    value={student.registerNumber}
-                    onChange={(e) => handleChange(student.id, 'registerNumber', e.target.value)}
-                    placeholder="e.g. VPABMBT001"
-                  />
-                </td>
-                <td className="input-cell">
-                  <input
-                    type="text"
-                    className="table-input text-left"
-                    value={student.name}
-                    onChange={(e) => handleChange(student.id, 'name', e.target.value)}
-                    placeholder="Student Name"
-                  />
-                </td>
-                <td>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button 
-                      className="btn" 
-                      style={{ background: '#10b981', color: 'white', border: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
-                      onClick={() => handleCopyDown(index)}
-                      title="Copy down (auto-increment register number)"
-                    >
-                      <Copy size={16} />
-                      Copy down
-                    </button>
-                    <button 
-                      className="btn btn-danger btn-icon" 
-                      onClick={() => handleRemoveStudent(student.id)}
-                      title="Remove row"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        
+        {students.length === 0 && (
+          <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>
+            No students added. Click the button below to add one.
+          </div>
+        )}
+
+        {students.map((student, index) => (
+          <div key={student.id} className="glass-panel" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            
+            {/* Card Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <div style={{ background: 'rgba(167, 139, 250, 0.2)', color: '#a78bfa', width: '28px', height: '28px', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                  {index + 1}
+                </div>
+                <span style={{ fontSize: '1rem', fontWeight: 'bold', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <User size={16} color="#94a3b8" />
+                  Student Details
+                </span>
+              </div>
+              <button 
+                className="btn btn-danger btn-icon" 
+                onClick={() => handleRemoveStudent(student.id)}
+                title="Remove student"
+                style={{ padding: '6px', background: 'transparent', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+
+            {/* Form Fields */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+              <div>
+                <label style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '4px', display: 'block' }}>Register Number</label>
+                <input
+                  type="text"
+                  className="table-input text-left"
+                  value={student.registerNumber}
+                  onChange={(e) => handleChange(student.id, 'registerNumber', e.target.value)}
+                  placeholder="e.g. VPABMBT001"
+                  style={{ width: '100%', fontSize: '1rem', padding: '10px' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '4px', display: 'block' }}>Name of the Candidate</label>
+                <input
+                  type="text"
+                  className="table-input text-left"
+                  value={student.name}
+                  onChange={(e) => handleChange(student.id, 'name', e.target.value)}
+                  placeholder="Student Name"
+                  style={{ width: '100%', fontSize: '1rem', padding: '10px' }}
+                />
+              </div>
+            </div>
+
+            {/* Card Footer Actions */}
+            <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-start' }}>
+              <button 
+                className="btn" 
+                style={{ background: '#10b981', color: 'white', border: 'none', display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontSize: '0.9rem' }}
+                onClick={() => handleCopyDown(index)}
+                title="Copy down (auto-increment register number)"
+              >
+                <Copy size={16} />
+                Copy down
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
-      <div style={{ padding: '1rem 0' }}>
-        <button className="btn btn-secondary" onClick={handleAddStudent}>
+
+      <div style={{ padding: '1.5rem 0', display: 'flex', justifyContent: 'center' }}>
+        <button className="btn btn-secondary" onClick={handleAddStudent} style={{ width: '100%', maxWidth: '300px' }}>
           <Plus size={18} />
           Add Student Row
         </button>

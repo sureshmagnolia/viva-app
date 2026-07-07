@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { FileSpreadsheet } from 'lucide-react';
+import { FileSpreadsheet, Trash2 } from 'lucide-react';
 import DetailsForm from './components/DetailsForm';
 import StudentsTab from './components/StudentsTab';
 import ProjectGradesTab from './components/ProjectGradesTab';
 import PresentationVivaTab from './components/PresentationVivaTab';
 import MarklistTab from './components/MarklistTab';
 import PrintableMarklist from './components/PrintableMarklist';
+import ClearDataModal from './components/ClearDataModal';
 import './index.css';
 
 function ProjectVivaApp() {
@@ -33,6 +34,7 @@ function ProjectVivaApp() {
   });
 
   const [currentTab, setCurrentTab] = useState('students');
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
 
   // Auto-save to localStorage
   useEffect(() => {
@@ -42,6 +44,20 @@ function ProjectVivaApp() {
 
   const handleChange = (id, field, value) => {
     setStudents(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+  };
+
+  const handleClearAllData = () => {
+    localStorage.removeItem('viva_marks_details');
+    localStorage.removeItem('viva_marks_students');
+    setDetails({ centre: '', date: '', courseCode: '' });
+    setStudents([
+      { 
+        id: '1', registerNumber: '', name: '', topic: '',
+        structural: 'A+', editing: 'A+', references: 'A+', title: 'A+', supporting: 'A+', results: 'A+', novelty: 'A+',
+        presentationEx1: 'A+', presentationEx2: 'A+', vivaEx1: 'A+', vivaEx2: 'A+' 
+      }
+    ]);
+    setCurrentTab('students');
   };
 
   const tabs = [
@@ -57,11 +73,19 @@ function ProjectVivaApp() {
 
   return (
     <div className="app-container">
-      <header className="header glass-panel">
+      <header className="header glass-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <FileSpreadsheet size={32} color="#60a5fa" />
           <h1 className="header-title">Project Viva Marks Consolidator</h1>
         </div>
+        <button 
+          className="btn btn-danger" 
+          onClick={() => setIsClearModalOpen(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}
+        >
+          <Trash2 size={18} />
+          Reset App Data
+        </button>
       </header>
 
       <main style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -98,6 +122,13 @@ function ProjectVivaApp() {
           </div>
         </section>
       </main>
+
+      <ClearDataModal 
+        isOpen={isClearModalOpen} 
+        onClose={() => setIsClearModalOpen(false)} 
+        onConfirm={handleClearAllData}
+        appName="Project Viva App"
+      />
     </div>
   );
 }
