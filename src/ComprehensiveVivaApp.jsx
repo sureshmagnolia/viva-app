@@ -145,7 +145,7 @@ function ComprehensiveVivaApp() {
           <h1 className="header-title">Comprehensive Viva Marks Consolidator</h1>
         </div>
         
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }} className="header-actions">
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%' }} className="header-actions">
           <input 
             type="file" 
             accept=".json" 
