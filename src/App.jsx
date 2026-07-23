@@ -6,7 +6,7 @@ import SyncTab from './components/SyncTab';
 import './index.css';
 
 // Build version for cache verification
-const APP_VERSION = "v1.2.1 (HTTPS Cloud Relay Fix)";
+const APP_VERSION = "v1.3.0 (ntfy.sh HTTPS Relay)";
 
 // PeerJS signaling & WebRTC configuration with static IP & domain STUN/TURN relays
 const PEER_OPTIONS = {
@@ -32,9 +32,6 @@ const PEER_OPTIONS = {
     iceCandidatePoolSize: 10
   }
 };
-
-// Public CORS HTTPS Key-Value Bucket for Cloud Fallback Sync (Bypasses all UDP/WebRTC firewall blocks)
-const KVDB_BUCKET = "8D4A2x6WpY7Z9K1M3Q5T7V";
 
 function App() {
   const queryParams = new URLSearchParams(window.location.search);
@@ -218,7 +215,7 @@ function App() {
   }, [historyIndex, history, canUndo, canRedo]);
 
   // -------------------------------------------------------------
-  // DUAL-ENGINE SYNC: WEBRTC P2P + HTTPS CLOUD RELAY FALLBACK
+  // DUAL-ENGINE SYNC: WEBRTC P2P + NTFY.SH HTTPS CLOUD RELAY FALLBACK
   // -------------------------------------------------------------
   const [roomCode, setRoomCode] = useState('');
   const [peerStatus, setPeerStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'error'
@@ -280,12 +277,12 @@ function App() {
     activeRoomCodeRef.current = '';
   };
 
-  // HTTPS Cloud Relay API (Fallback if WebRTC UDP is blocked by firewall)
+  // HTTPS Cloud Relay API (ntfy.sh - 100% free, CORS-enabled HTTPS relay)
   const pushToHttpsCloud = async (pd, ps, cd, cs, codeOverride) => {
     const targetCode = codeOverride || activeRoomCodeRef.current || roomCode;
     if (!targetCode) return;
 
-    const url = `https://kvdb.io/${KVDB_BUCKET}/viva_room_${targetCode}`;
+    const url = `https://ntfy.sh/viva_room_${targetCode}`;
     const payload = {
       type: 'GLOBAL_SYNC_STATE',
       projectDetails: pd,
@@ -307,41 +304,54 @@ function App() {
     }
   };
 
-  const startHttpsCloudPolling = (codeOverride) => {
+  const startHttpsCloudListening = (codeOverride) => {
     const targetCode = codeOverride || activeRoomCodeRef.current || roomCode;
     if (!targetCode) return;
 
     if (cloudPollingIntervalRef.current) clearInterval(cloudPollingIntervalRef.current);
-    addP2pLog(`HTTPS Cloud: Activating HTTPS REST Relay fallback polling for Room ${targetCode}...`);
+    addP2pLog(`HTTPS Cloud: Activating HTTPS REST Relay listener for Room ${targetCode}...`);
 
     cloudPollingIntervalRef.current = setInterval(async () => {
       try {
-        const url = `https://kvdb.io/${KVDB_BUCKET}/viva_room_${targetCode}`;
+        const url = `https://ntfy.sh/viva_room_${targetCode}/json?poll=1`;
         const res = await fetch(url);
         if (res.ok) {
-          const data = await res.json();
-          if (data && data.timestamp && data.timestamp > lastHttpsTsRef.current) {
-            lastHttpsTsRef.current = data.timestamp;
-            isInternalHistoryChangeRef.current = true;
+          const text = await res.text();
+          const lines = text.trim().split('\n');
+          for (let i = lines.length - 1; i >= 0; i--) {
             try {
-              if (data.projectDetails) setProjectDetails(data.projectDetails);
-              if (data.projectStudents) setProjectStudents(data.projectStudents);
-              if (data.compDetails) setCompDetails(data.compDetails);
-              if (data.compStudents) setCompStudents(data.compStudents);
+              if (!lines[i].trim()) continue;
+              const msg = JSON.parse(lines[i]);
+              if (msg.event === 'message' && msg.message) {
+                const data = JSON.parse(msg.message);
+                if (data && data.timestamp && data.timestamp > lastHttpsTsRef.current) {
+                  lastHttpsTsRef.current = data.timestamp;
+                  isInternalHistoryChangeRef.current = true;
+                  try {
+                    if (data.projectDetails) setProjectDetails(data.projectDetails);
+                    if (data.projectStudents) setProjectStudents(data.projectStudents);
+                    if (data.compDetails) setCompDetails(data.compDetails);
+                    if (data.compStudents) setCompStudents(data.compStudents);
 
-              setPeerStatus('connected');
-              setSyncMode('https');
-              setStatusMsg(`Connected via HTTPS Cloud Relay (Room ${targetCode})`);
-              addP2pLog(`HTTPS Cloud: Received synced update at ${new Date().toLocaleTimeString()}`);
-            } finally {
-              setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
+                    setPeerStatus('connected');
+                    setSyncMode('https');
+                    setStatusMsg(`Connected via HTTPS Cloud Relay (Room ${targetCode})`);
+                    addP2pLog(`HTTPS Cloud: Synced state update received for Room ${targetCode}`);
+                  } finally {
+                    setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
+                  }
+                  break;
+                }
+              }
+            } catch (_err) {
+              // skip unparseable line
             }
           }
         }
       } catch (err) {
-        addP2pLog(`HTTPS Cloud Poll Error: ${err.message}`);
+        addP2pLog(`HTTPS Cloud Listen Error: ${err.message}`);
       }
-    }, 1500);
+    }, 1200);
   };
 
   const attachWebRtcListeners = (conn, label) => {
@@ -356,7 +366,7 @@ function App() {
         addP2pLog(`${label}: ICE Connection State changed -> ${pc.iceConnectionState}`);
         if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
           addP2pLog(`${label}: WebRTC blocked by router firewall. Activating HTTPS Cloud Relay fallback...`);
-          startHttpsCloudPolling(activeRoomCodeRef.current);
+          startHttpsCloudListening(activeRoomCodeRef.current);
         }
       };
 
@@ -396,8 +406,8 @@ function App() {
 
       // Publish initial state to HTTPS Cloud Relay
       pushToHttpsCloud(projectDetails, projectStudents, compDetails, compStudents, code);
-      // Start fallback polling
-      startHttpsCloudPolling(code);
+      // Start fallback listener
+      startHttpsCloudListening(code);
     });
 
     peer.on('connection', (conn) => {
@@ -408,7 +418,7 @@ function App() {
     peer.on('error', (err) => {
       addP2pLog(`Host: P2P Error (${err.type}): ${err.message}. Enabling HTTPS Cloud Relay...`);
       console.error('PeerJS Host Error:', err);
-      startHttpsCloudPolling(code);
+      startHttpsCloudListening(code);
     });
   };
 
@@ -497,8 +507,8 @@ function App() {
     const peer = new Peer(PEER_OPTIONS);
     peerRef.current = peer;
 
-    // Start HTTPS Cloud Relay polling immediately as fallback in case WebRTC fails
-    startHttpsCloudPolling(cleanCode);
+    // Start HTTPS Cloud Relay listener immediately as fallback in case WebRTC fails
+    startHttpsCloudListening(cleanCode);
 
     peer.on('open', (myId) => {
       const hostPeerId = `viva-${cleanCode}`;
