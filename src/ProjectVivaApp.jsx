@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileSpreadsheet, Trash2, Download, Upload } from 'lucide-react';
+import { FileSpreadsheet, Trash2, Download, Upload, Wifi } from 'lucide-react';
 import DetailsForm from './components/DetailsForm';
 import StudentsTab from './components/StudentsTab';
 import ProjectGradesTab from './components/ProjectGradesTab';
@@ -7,12 +7,15 @@ import PresentationVivaTab from './components/PresentationVivaTab';
 import MarklistTab from './components/MarklistTab';
 import PrintableMarklist from './components/PrintableMarklist';
 import ClearDataModal from './components/ClearDataModal';
+import SyncModal from './components/SyncModal';
 import './index.css';
 
 function ProjectVivaApp() {
   const queryParams = new URLSearchParams(window.location.search);
   const printMode = queryParams.get('print');
   const fileInputRef = useRef(null);
+
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
   const [details, setDetails] = useState(() => {
     const saved = localStorage.getItem('viva_marks_details');
@@ -123,6 +126,16 @@ function ProjectVivaApp() {
         </div>
         
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%' }} className="header-actions">
+          <button 
+            className="btn btn-primary" 
+            onClick={() => setIsSyncModalOpen(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'linear-gradient(135deg, #0284c7, #2563eb)', color: '#fff', border: 'none', flex: '1 1 auto' }}
+            title="Sync data live over P2P Wi-Fi or merge offline via QR scan"
+          >
+            <Wifi size={18} />
+            Sync & Merge Devices
+          </button>
+
           <input 
             type="file" 
             accept=".json" 
@@ -196,6 +209,16 @@ function ProjectVivaApp() {
           </div>
         </section>
       </main>
+
+      <SyncModal 
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        details={details}
+        setDetails={setDetails}
+        students={students}
+        setStudents={setStudents}
+        appType="ProjectVivaApp"
+      />
 
       <ClearDataModal 
         isOpen={isClearModalOpen} 

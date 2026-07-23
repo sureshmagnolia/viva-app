@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BookOpen, Trash2, Download, Upload } from 'lucide-react';
+import { BookOpen, Trash2, Download, Upload, Wifi } from 'lucide-react';
 import './index.css';
 
 import DetailsForm from './components/DetailsForm';
@@ -8,11 +8,14 @@ import CompExaminerTab from './components/CompExaminerTab';
 import CompMarklistTab from './components/CompMarklistTab';
 import CompPrintableMarklist from './components/CompPrintableMarklist';
 import ClearDataModal from './components/ClearDataModal';
+import SyncModal from './components/SyncModal';
 
 function ComprehensiveVivaApp() {
   const queryParams = new URLSearchParams(window.location.search);
   const printMode = queryParams.get('print');
   const fileInputRef = useRef(null);
+
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
   const [details, setDetails] = useState(() => {
     const saved = localStorage.getItem('comp_viva_details');
@@ -146,6 +149,16 @@ function ComprehensiveVivaApp() {
         </div>
         
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%' }} className="header-actions">
+          <button 
+            className="btn btn-primary" 
+            onClick={() => setIsSyncModalOpen(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'linear-gradient(135deg, #7c3aed, #9333ea)', color: '#fff', border: 'none', flex: '1 1 auto' }}
+            title="Sync data live over P2P Wi-Fi or merge offline via QR scan"
+          >
+            <Wifi size={18} />
+            Sync & Merge Devices
+          </button>
+
           <input 
             type="file" 
             accept=".json" 
@@ -219,6 +232,16 @@ function ComprehensiveVivaApp() {
           </div>
         </section>
       </main>
+
+      <SyncModal 
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        details={details}
+        setDetails={setDetails}
+        students={students}
+        setStudents={setStudents}
+        appType="ComprehensiveVivaApp"
+      />
 
       <ClearDataModal 
         isOpen={isClearModalOpen} 

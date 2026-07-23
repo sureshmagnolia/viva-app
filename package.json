@@ -1,6 +1,6 @@
 {
-  "name": "vivamarksapp",
-  "homepage": "https://sureshmagnolia.github.io/VivaMarksApp/",
+  "name": "viva-app",
+  "homepage": "https://sureshmagnolia.github.io/viva-app/",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,9 +13,12 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.23.0",
+    "peerjs": "^1.5.5",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
