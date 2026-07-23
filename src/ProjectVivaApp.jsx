@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileSpreadsheet, Trash2, Download, Upload, Wifi } from 'lucide-react';
+import { FileSpreadsheet, Trash2, Download, Upload, Wifi, CheckCircle2 } from 'lucide-react';
 import DetailsForm from './components/DetailsForm';
 import StudentsTab from './components/StudentsTab';
 import ProjectGradesTab from './components/ProjectGradesTab';
@@ -10,23 +10,28 @@ import ClearDataModal from './components/ClearDataModal';
 import SyncModal from './components/SyncModal';
 import './index.css';
 
-function ProjectVivaApp() {
+function ProjectVivaApp({ 
+  details: propDetails, 
+  setDetails: propSetDetails, 
+  students: propStudents, 
+  setStudents: propSetStudents,
+  peerStatus,
+  roomCode,
+  onOpenSyncTab
+}) {
   const queryParams = new URLSearchParams(window.location.search);
   const printMode = queryParams.get('print');
   const fileInputRef = useRef(null);
 
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
-  const [details, setDetails] = useState(() => {
+  // Fallback internal state if not provided as props
+  const [internalDetails, setInternalDetails] = useState(() => {
     const saved = localStorage.getItem('viva_marks_details');
-    return saved ? JSON.parse(saved) : {
-      centre: '',
-      date: '',
-      courseCode: ''
-    };
+    return saved ? JSON.parse(saved) : { centre: '', date: '', courseCode: '' };
   });
 
-  const [students, setStudents] = useState(() => {
+  const [internalStudents, setInternalStudents] = useState(() => {
     const saved = localStorage.getItem('viva_marks_students');
     return saved ? JSON.parse(saved) : [
       { 
@@ -36,6 +41,11 @@ function ProjectVivaApp() {
       }
     ];
   });
+
+  const details = propDetails || internalDetails;
+  const setDetails = propSetDetails || setInternalDetails;
+  const students = propStudents || internalStudents;
+  const setStudents = propSetStudents || setInternalStudents;
 
   const [currentTab, setCurrentTab] = useState('students');
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
@@ -95,12 +105,11 @@ function ProjectVivaApp() {
           setStudents(data.students);
           alert('Data imported successfully!');
         } else {
-          alert('Error: You are trying to upload a file that belongs to a different app or is invalid. Please upload a Project Viva backup file.');
+          alert('Error: Invalid Project Viva backup file.');
         }
-      } catch (err) {
+      } catch (_err) {
         alert('Error reading JSON file.');
       }
-      // Reset input so the same file can be selected again if needed
       event.target.value = '';
     };
     reader.readAsText(file);
@@ -128,12 +137,16 @@ function ProjectVivaApp() {
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%' }} className="header-actions">
           <button 
             className="btn btn-primary" 
-            onClick={() => setIsSyncModalOpen(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'linear-gradient(135deg, #0284c7, #2563eb)', color: '#fff', border: 'none', flex: '1 1 auto' }}
-            title="Sync data live over P2P Wi-Fi or merge offline via QR scan"
+            onClick={onOpenSyncTab || (() => setIsSyncModalOpen(true))}
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', 
+              background: peerStatus === 'connected' ? 'linear-gradient(135deg, #16a34a, #15803d)' : 'linear-gradient(135deg, #0284c7, #2563eb)', 
+              color: '#fff', border: 'none', flex: '1 1 auto' 
+            }}
+            title="Manage Multi-Device Background Sync"
           >
-            <Wifi size={18} />
-            Sync & Merge Devices
+            {peerStatus === 'connected' ? <CheckCircle2 size={18} /> : <Wifi size={18} />}
+            {peerStatus === 'connected' ? `Sync Active (${roomCode})` : 'Setup Multi-Device Sync'}
           </button>
 
           <input 
