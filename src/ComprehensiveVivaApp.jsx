@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BookOpen, Trash2, Download, Upload, Wifi, CheckCircle2 } from 'lucide-react';
+import { BookOpen, Trash2, Download, Upload } from 'lucide-react';
 import './index.css';
 
 import DetailsForm from './components/DetailsForm';
@@ -8,22 +8,16 @@ import CompExaminerTab from './components/CompExaminerTab';
 import CompMarklistTab from './components/CompMarklistTab';
 import CompPrintableMarklist from './components/CompPrintableMarklist';
 import ClearDataModal from './components/ClearDataModal';
-import SyncModal from './components/SyncModal';
 
 function ComprehensiveVivaApp({
   details: propDetails,
   setDetails: propSetDetails,
   students: propStudents,
-  setStudents: propSetStudents,
-  peerStatus,
-  roomCode,
-  onOpenSyncTab
+  setStudents: propSetStudents
 }) {
   const queryParams = new URLSearchParams(window.location.search);
   const printMode = queryParams.get('print');
   const fileInputRef = useRef(null);
-
-  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
   // Internal state fallbacks
   const [internalDetails, setInternalDetails] = useState(() => {
@@ -147,20 +141,6 @@ function ComprehensiveVivaApp({
         </div>
         
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%' }} className="header-actions">
-          <button 
-            className="btn btn-primary" 
-            onClick={onOpenSyncTab || (() => setIsSyncModalOpen(true))}
-            style={{ 
-              display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', 
-              background: peerStatus === 'connected' ? 'linear-gradient(135deg, #16a34a, #15803d)' : 'linear-gradient(135deg, #7c3aed, #9333ea)', 
-              color: '#fff', border: 'none', flex: '1 1 auto' 
-            }}
-            title="Manage Multi-Device Background Sync"
-          >
-            {peerStatus === 'connected' ? <CheckCircle2 size={18} /> : <Wifi size={18} />}
-            {peerStatus === 'connected' ? `Sync Active (${roomCode})` : 'Setup Multi-Device Sync'}
-          </button>
-
           <input 
             type="file" 
             accept=".json" 
@@ -234,16 +214,6 @@ function ComprehensiveVivaApp({
           </div>
         </section>
       </main>
-
-      <SyncModal 
-        isOpen={isSyncModalOpen}
-        onClose={() => setIsSyncModalOpen(false)}
-        details={details}
-        setDetails={setDetails}
-        students={students}
-        setStudents={setStudents}
-        appType="ComprehensiveVivaApp"
-      />
 
       <ClearDataModal 
         isOpen={isClearModalOpen} 

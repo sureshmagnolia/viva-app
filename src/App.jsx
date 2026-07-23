@@ -268,16 +268,12 @@ function App() {
           <ProjectVivaApp 
             details={projectDetails} setDetails={setProjectDetails}
             students={projectStudents} setStudents={setProjectStudents}
-            peerStatus={peerStatus} roomCode={roomCode}
-            onOpenSyncTab={() => handleTabSwitch('sync')}
           />
         )}
         {currentAppTab === 'comp' && (
           <ComprehensiveVivaApp 
             details={compDetails} setDetails={setCompDetails}
             students={compStudents} setStudents={setCompStudents}
-            peerStatus={peerStatus} roomCode={roomCode}
-            onOpenSyncTab={() => handleTabSwitch('sync')}
           />
         )}
         {currentAppTab === 'sync' && (
