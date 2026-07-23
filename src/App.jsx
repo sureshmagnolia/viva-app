@@ -311,6 +311,7 @@ function App() {
   const hasSentCloudPingRef = useRef(false);
   const hasReceivedCloudStateRef = useRef(false);
   const lastHostSeenRef = useRef(Date.now());
+  const isDisconnectingRef = useRef(false);
 
   const addP2pLog = (msg) => {
     const time = new Date().toLocaleTimeString();
@@ -374,25 +375,29 @@ function App() {
 
   const disconnectPeer = () => {
     addP2pLog('Disconnecting Sync Session...');
+    isDisconnectingRef.current = true;
+
     if (cloudPollingIntervalRef.current) {
       clearInterval(cloudPollingIntervalRef.current);
       cloudPollingIntervalRef.current = null;
     }
     if (guestConnectionRef.current) {
-      guestConnectionRef.current.close();
+      try { guestConnectionRef.current.close(); } catch (_) {}
       guestConnectionRef.current = null;
     }
-    hostConnectionsRef.current.forEach(conn => conn.close());
+    hostConnectionsRef.current.forEach(conn => {
+      try { conn.close(); } catch (_) {}
+    });
     hostConnectionsRef.current.clear();
 
     if (peerRef.current) {
-      peerRef.current.destroy();
+      try { peerRef.current.destroy(); } catch (_) {}
       peerRef.current = null;
     }
 
     setPeerStatus('disconnected');
     setRoomCode('');
-    setStatusMsg('');
+    setStatusMsg('Offline Mode: Your grade entries are saved in IndexedDB.');
     isHostRef.current = false;
     activeRoomCodeRef.current = '';
     lastHttpsTsRef.current = 0;
@@ -557,13 +562,15 @@ function App() {
 
   const startHttpsCloudListening = (codeOverride) => {
     const targetCode = codeOverride || activeRoomCodeRef.current || roomCode;
-    if (!targetCode) return;
+    if (!targetCode || isDisconnectingRef.current) return;
 
     if (cloudPollingIntervalRef.current) return;
 
     addP2pLog(`HTTPS Cloud: Activating Non-Blocking Cloud Relay Listener for Room ${targetCode}...`);
 
     const pollCloud = async () => {
+      if (isDisconnectingRef.current || !activeRoomCodeRef.current) return;
+
       let data = null;
       let fetchedPointerKey = null;
 
@@ -580,6 +587,8 @@ function App() {
         }
       } catch (_err1) {}
 
+      if (isDisconnectingRef.current || !activeRoomCodeRef.current) return;
+
       // 2. Fallback to keyvalue.immanuel.co
       if (!fetchedPointerKey) {
         try {
@@ -592,6 +601,8 @@ function App() {
           }
         } catch (_err2) {}
       }
+
+      if (isDisconnectingRef.current || !activeRoomCodeRef.current) return;
 
       // Process fetched pointer key
       if (fetchedPointerKey && fetchedPointerKey !== lastPasteKeyRef.current) {
@@ -608,6 +619,8 @@ function App() {
           }
         } catch (_parseErr) {}
       }
+
+      if (isDisconnectingRef.current || !activeRoomCodeRef.current) return;
 
       if (data && data.timestamp) {
         hasReceivedCloudStateRef.current = true;
@@ -644,9 +657,6 @@ function App() {
           } finally {
             setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
           }
-        } else if (!isHostRef.current) {
-          setPeerStatus(prev => (prev === 'disconnected' || prev === 'connecting' ? 'connected' : prev));
-          setSyncMode(prev => (prev === 'p2p' ? 'p2p' : 'https'));
         }
       }
     };
@@ -683,6 +693,7 @@ function App() {
 
   const initHostPeer = () => {
     disconnectPeer();
+    isDisconnectingRef.current = false;
     clearP2pLogs();
     setConnectionLostReason(null);
 
@@ -804,6 +815,7 @@ function App() {
 
   const joinPeerRoom = (cleanCode) => {
     disconnectPeer();
+    isDisconnectingRef.current = false;
     clearP2pLogs();
     isHostRef.current = false;
     hasSentCloudPingRef.current = false;
@@ -894,7 +906,7 @@ function App() {
   };
 
   const handleIncomingPeerState = (data, peerId = 'remote') => {
-    if (!data) return;
+    if (!data || isDisconnectingRef.current || !activeRoomCodeRef.current) return;
 
     if (!isHostRef.current) {
       lastHostSeenRef.current = Date.now();
