@@ -6,7 +6,7 @@ import SyncTab from './components/SyncTab';
 import './index.css';
 
 // Build version for cache verification
-const APP_VERSION = "v1.6.0 (Instant Cloud Connection Fix)";
+const APP_VERSION = "v1.7.0 (Ultimate Sync Engine)";
 
 // PeerJS signaling & WebRTC configuration with static IP & domain STUN/TURN relays
 const PEER_OPTIONS = {
@@ -232,7 +232,7 @@ function App() {
   }, [historyIndex, history, canUndo, canRedo]);
 
   // -------------------------------------------------------------
-  // DUAL-ENGINE SYNC: WEBRTC P2P + BASE64 CLOUD RELAY ENGINE
+  // DUAL-ENGINE SYNC: WEBRTC P2P + HYBRID CLOUD RELAY ENGINE
   // -------------------------------------------------------------
   const [roomCode, setRoomCode] = useState('');
   const [peerStatus, setPeerStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'error'
@@ -242,6 +242,7 @@ function App() {
 
   const activeRoomCodeRef = useRef('');
   const lastHttpsTsRef = useRef(0);
+  const lastPasteKeyRef = useRef('');
   const cloudPollingIntervalRef = useRef(null);
 
   const addP2pLog = (msg) => {
@@ -292,10 +293,12 @@ function App() {
     setStatusMsg('');
     isHostRef.current = false;
     activeRoomCodeRef.current = '';
+    lastHttpsTsRef.current = 0;
+    lastPasteKeyRef.current = '';
   };
 
-  // HTTPS Base64 Cloud Relay API (keyvalue.immanuel.co + ntfy.sh failover)
-  const pushToHttpsCloud = async (pd, ps, cd, cs, codeOverride) => {
+  // HTTPS Hybrid Cloud Relay API (keyvalue.immanuel.co + pastes.dev unlimited payload size + ntfy.sh failover)
+  const pushToHttpsCloud = async (pd, ps, cd, cs, codeOverride, incomingTs) => {
     const targetCode = codeOverride || activeRoomCodeRef.current || roomCode;
     if (!targetCode) return;
 
@@ -305,21 +308,53 @@ function App() {
       projectStudents: ps,
       compDetails: cd,
       compStudents: cs,
-      timestamp: Date.now()
+      timestamp: incomingTs || Date.now()
     };
     const payloadStr = JSON.stringify(payload);
     const b64Payload = toBase64Url(payloadStr);
 
     let published = false;
+    let pointerKey = b64Payload;
 
-    // 1. Primary Cloud Relay: keyvalue.immanuel.co (Base64 encoded)
+    // 0. Cloud Storage Offloading for large payloads (pastes.dev or bytebin fallback)
+    // IIS limits URLs to ~4000 chars. If payload > 1000 chars, offload to unlimited pastebins
+    if (b64Payload.length > 1000) {
+      try {
+        const pRes = await fetch('https://api.pastes.dev/post', { method: 'POST', body: payloadStr });
+        if (pRes.ok) {
+          const pData = await pRes.json();
+          pointerKey = 'pastes_' + pData.key;
+          addP2pLog(`HTTPS Cloud: Offloaded large payload to pastes.dev`);
+        } else throw new Error();
+      } catch (err) {
+        try {
+          const pRes2 = await fetch('https://bytebin.lucko.me/post', { 
+            method: 'POST', 
+            body: payloadStr, 
+            headers: { 'Content-Type': 'application/json' } 
+          });
+          if (pRes2.ok) {
+            const pData2 = await pRes2.json();
+            pointerKey = 'bytebin_' + pData2.key;
+            addP2pLog(`HTTPS Cloud: Offloaded large payload to bytebin`);
+          } else {
+            throw new Error('bytebin error');
+          }
+        } catch (err2) {
+          addP2pLog(`HTTPS Cloud: All pastebins failed. Trying raw Base64...`);
+        }
+      }
+    }
+
+    // 1. Primary Cloud Relay: keyvalue.immanuel.co (Pointer or Base64)
     try {
-      const res1 = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/vivaapp123/viva_room_${targetCode}/${b64Payload}`, {
+      const res1 = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/vivaapp123/viva_room_${targetCode}/${pointerKey}`, {
         method: 'POST'
       });
       if (res1.ok) {
         published = true;
         lastHttpsTsRef.current = payload.timestamp;
+        lastPasteKeyRef.current = pointerKey;
         addP2pLog(`HTTPS Cloud (keyvalue): Published state update for Room ${targetCode}`);
       }
     } catch (_err1) {
@@ -329,15 +364,16 @@ function App() {
     // 2. Secondary Cloud Relay: ntfy.sh
     if (!published) {
       try {
+        const ntfyPayload = JSON.stringify({ ptr: pointerKey });
         const res2 = await fetch(`https://ntfy.sh/viva_room_${targetCode}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: payloadStr
+          body: ntfyPayload
         });
         if (res2.ok) {
           published = true;
           lastHttpsTsRef.current = payload.timestamp;
-          addP2pLog(`HTTPS Cloud (ntfy): Published state update for Room ${targetCode}`);
+          addP2pLog(`HTTPS Cloud (ntfy): Published pointer state update for Room ${targetCode}`);
         }
       } catch (_err2) {
         // ntfy blocked
@@ -354,27 +390,45 @@ function App() {
     if (!targetCode) return;
 
     if (cloudPollingIntervalRef.current) clearInterval(cloudPollingIntervalRef.current);
-    addP2pLog(`HTTPS Cloud: Activating Base64 Cloud Relay listener for Room ${targetCode}...`);
+    addP2pLog(`HTTPS Cloud: Activating Hybrid Cloud Relay listener for Room ${targetCode}...`);
 
     cloudPollingIntervalRef.current = setInterval(async () => {
       let data = null;
+      let fetchedPointerKey = null;
 
-      // 1. Try keyvalue.immanuel.co (Base64)
+      // 1. Try keyvalue.immanuel.co (Base64 or Pointer)
       try {
         const res1 = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/GetValue/vivaapp123/viva_room_${targetCode}`);
         if (res1.ok) {
           const rawVal = await res1.text();
           if (rawVal && rawVal !== 'null' && rawVal !== '""') {
-            const cleanStr = rawVal.replace(/^"|"$/g, '');
-            const decodedStr = fromBase64Url(cleanStr);
-            data = JSON.parse(decodedStr);
+            const pointerKey = rawVal.replace(/^"|"$/g, '');
+            fetchedPointerKey = pointerKey;
+            
+            // Only parse if pointer has changed
+            if (pointerKey && pointerKey !== lastPasteKeyRef.current) {
+              // Update lastPasteKeyRef immediately so we never infinite-loop on the same pointer if it's stale
+              lastPasteKeyRef.current = pointerKey; 
+
+              if (pointerKey.startsWith('pastes_')) {
+                const pRes = await fetch(`https://api.pastes.dev/${pointerKey.split('_')[1]}`);
+                if (pRes.ok) data = await pRes.json();
+              } else if (pointerKey.startsWith('bytebin_')) {
+                const pRes = await fetch(`https://bytebin.lucko.me/${pointerKey.split('_')[1]}`);
+                if (pRes.ok) data = await pRes.json();
+              } else {
+                // Long key means raw Base64 string directly in keyvalue
+                const decodedStr = fromBase64Url(pointerKey);
+                data = JSON.parse(decodedStr);
+              }
+            }
           }
         }
       } catch (_err1) {
         // fallback to ntfy
       }
 
-      // 2. Fallback to ntfy.sh
+      // 2. Fallback to ntfy.sh (try if keyvalue failed entirely OR if no data was retrieved)
       if (!data) {
         try {
           const res2 = await fetch(`https://ntfy.sh/viva_room_${targetCode}/json?poll=1`);
@@ -386,7 +440,26 @@ function App() {
               try {
                 const msg = JSON.parse(lines[i]);
                 if (msg.event === 'message' && msg.message) {
-                  data = JSON.parse(msg.message);
+                  const ntfyData = JSON.parse(msg.message);
+                  
+                  if (ntfyData.ptr) {
+                    const pKey = ntfyData.ptr;
+                    fetchedPointerKey = pKey;
+                    if (pKey && pKey !== lastPasteKeyRef.current) {
+                      lastPasteKeyRef.current = pKey;
+                      if (pKey.startsWith('pastes_')) {
+                        const pRes = await fetch(`https://api.pastes.dev/${pKey.split('_')[1]}`);
+                        if (pRes.ok) data = await pRes.json();
+                      } else if (pKey.startsWith('bytebin_')) {
+                        const pRes = await fetch(`https://bytebin.lucko.me/${pKey.split('_')[1]}`);
+                        if (pRes.ok) data = await pRes.json();
+                      } else {
+                        data = JSON.parse(fromBase64Url(pKey));
+                      }
+                    }
+                  } else {
+                    data = ntfyData; // Legacy raw payload support
+                  }
                   break;
                 }
               } catch (_e) {}
@@ -400,6 +473,8 @@ function App() {
       if (data && data.timestamp) {
         if (data.timestamp > lastHttpsTsRef.current) {
           lastHttpsTsRef.current = data.timestamp;
+          // fetchedPointerKey logic removed because we now update it eagerly before parsing
+          
           isInternalHistoryChangeRef.current = true;
           try {
             if (data.projectDetails) setProjectDetails(data.projectDetails);
@@ -409,6 +484,13 @@ function App() {
 
             setStatusMsg(`Synced update received via Cloud Relay at ${new Date().toLocaleTimeString()}`);
             addP2pLog(`HTTPS Cloud: Synced state update received for Room ${targetCode}`);
+
+            // CRITICAL SYNC FIX: If HOST receives an update via Cloud, relay it to P2P guests!
+            if (isHostRef.current) {
+              hostConnectionsRef.current.forEach(conn => {
+                if (conn.open) conn.send(data);
+              });
+            }
           } finally {
             setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
           }
@@ -511,20 +593,33 @@ function App() {
 
     conn.on('data', (data) => {
       if (data && data.type === 'GLOBAL_SYNC_STATE') {
-        addP2pLog(`Host: Received state packet from ${conn.peer}. Relaying to guests...`);
+        addP2pLog(`Host: Received state packet from ${conn.peer}. Relaying to guests and Cloud...`);
         isInternalHistoryChangeRef.current = true;
         try {
+          if (data.timestamp && data.timestamp > lastHttpsTsRef.current) {
+            lastHttpsTsRef.current = data.timestamp;
+          }
           if (data.projectDetails) setProjectDetails(data.projectDetails);
           if (data.projectStudents) setProjectStudents(data.projectStudents);
           if (data.compDetails) setCompDetails(data.compDetails);
           if (data.compStudents) setCompStudents(data.compStudents);
 
-          // Relay to ALL OTHER connected guest devices in the room!
+          // Relay to ALL OTHER connected guest devices in the room over WebRTC!
           hostConnectionsRef.current.forEach((otherConn, peerId) => {
             if (peerId !== conn.peer && otherConn.open) {
               otherConn.send(data);
             }
           });
+          
+          // CRITICAL SYNC FIX: Host MUST push incoming P2P updates to the Cloud for Cloud-only guests!
+          pushToHttpsCloud(
+            data.projectDetails, 
+            data.projectStudents, 
+            data.compDetails, 
+            data.compStudents, 
+            roomCode || activeRoomCodeRef.current,
+            data.timestamp
+          );
 
           const totalDevices = hostConnectionsRef.current.size + 1;
           setPeerStatus('connected');
@@ -614,6 +709,9 @@ function App() {
         addP2pLog(`Guest: Received state update from host.`);
         isInternalHistoryChangeRef.current = true;
         try {
+          if (data.timestamp && data.timestamp > lastHttpsTsRef.current) {
+            lastHttpsTsRef.current = data.timestamp;
+          }
           if (data.projectDetails) setProjectDetails(data.projectDetails);
           if (data.projectStudents) setProjectStudents(data.projectStudents);
           if (data.compDetails) setCompDetails(data.compDetails);
@@ -642,13 +740,16 @@ function App() {
 
   const sendStateToConn = (conn, pd, ps, cd, cs) => {
     if (conn && conn.open) {
+      const ts = Date.now();
+      // Update our own tracker so we don't echo our own initial sync back
+      if (ts > lastHttpsTsRef.current) lastHttpsTsRef.current = ts;
       conn.send({
         type: 'GLOBAL_SYNC_STATE',
         projectDetails: pd,
         projectStudents: ps,
         compDetails: cd,
         compStudents: cs,
-        timestamp: Date.now()
+        timestamp: ts
       });
     }
   };
@@ -664,6 +765,9 @@ function App() {
       compStudents: cs,
       timestamp: Date.now()
     };
+    
+    // Update local tracker so the sender ignores this exact payload if it echoes back via Cloud
+    lastHttpsTsRef.current = payload.timestamp;
 
     // 1. Broadcast to same-device local tabs (0ms latency)
     if (bcRef.current) {
@@ -686,7 +790,9 @@ function App() {
   };
 
   // Broadcast state changes whenever local states change while connected
+  // Using a ref-check instead of relying solely on the 100ms timeout to prevent race-condition echoes
   useEffect(() => {
+    if (isInternalHistoryChangeRef.current) return;
     broadcastGlobalState(projectDetails, projectStudents, compDetails, compStudents);
   }, [projectDetails, projectStudents, compDetails, compStudents]);
 
