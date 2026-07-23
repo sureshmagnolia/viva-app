@@ -5,7 +5,7 @@ import ComprehensiveVivaApp from './ComprehensiveVivaApp';
 import SyncTab from './components/SyncTab';
 import './index.css';
 
-// PeerJS signaling & WebRTC configuration with maximum browser compatibility
+// PeerJS signaling & WebRTC configuration with STUN & TURN cloud relays
 const PEER_OPTIONS = {
   debug: 1,
   config: {
@@ -13,8 +13,21 @@ const PEER_OPTIONS = {
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun4.l.google.com:19302' }
+      {
+        urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelay',
+        credential: 'openrelay'
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443',
+        username: 'openrelay',
+        credential: 'openrelay'
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+        username: 'openrelay',
+        credential: 'openrelay'
+      }
     ],
     sdpSemantics: 'unified-plan',
     iceCandidatePoolSize: 10
