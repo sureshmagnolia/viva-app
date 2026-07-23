@@ -6,7 +6,7 @@ import SyncTab from './components/SyncTab';
 import './index.css';
 
 // Build version for cache verification
-const APP_VERSION = "v2.0.0 (Triple Multi-Cloud Sync Engine)";
+const APP_VERSION = "v2.0.1 (Zero-Preflight Fast Cloud Sync)";
 
 // PeerJS signaling & WebRTC configuration with static IP & domain STUN/TURN relays
 const PEER_OPTIONS = {
@@ -300,7 +300,7 @@ function App() {
     hasReceivedCloudStateRef.current = false;
   };
 
-  // Triple Multi-Cloud Relay API (ntfy.sh + dweet.io + keyvalue.immanuel.co)
+  // Zero-Preflight Fast HTTPS Cloud Relay (ntfy.sh raw + keyvalue.immanuel.co)
   const pushToHttpsCloud = async (pd, ps, cd, cs, codeOverride, incomingTs) => {
     const targetCode = codeOverride || activeRoomCodeRef.current || roomCode;
     if (!targetCode) return;
@@ -333,8 +333,7 @@ function App() {
         try {
           const pRes2 = await fetch('https://bytebin.lucko.me/post', { 
             method: 'POST', 
-            body: payloadStr, 
-            headers: { 'Content-Type': 'application/json' } 
+            body: payloadStr
           });
           if (pRes2.ok) {
             const pData2 = await pRes2.json();
@@ -349,40 +348,27 @@ function App() {
       }
     }
 
-    const ntfyBody = JSON.stringify({ ptr: pointerKey, ts: ts });
-
-    // Provider 1: ntfy.sh
+    // Provider 1: ntfy.sh (Raw Body -> No CORS Preflight!)
     try {
       const res1 = await fetch(`https://ntfy.sh/viva_room_${targetCode}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: ntfyBody
+        body: pointerKey
       });
       if (res1.ok) published = true;
     } catch (_e1) {}
 
-    // Provider 2: dweet.io
+    // Provider 2: keyvalue.immanuel.co (URL-based API -> No CORS Preflight!)
     try {
-      const res2 = await fetch(`https://dweet.io/dweet/for/viva_room_${targetCode}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: ntfyBody
+      const res2 = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/vivaapp123/viva_room_${targetCode}/${pointerKey}`, {
+        method: 'POST'
       });
       if (res2.ok) published = true;
     } catch (_e2) {}
 
-    // Provider 3: keyvalue.immanuel.co
-    try {
-      const res3 = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/vivaapp123/viva_room_${targetCode}/${pointerKey}`, {
-        method: 'POST'
-      });
-      if (res3.ok) published = true;
-    } catch (_e3) {}
-
     if (published) {
       lastHttpsTsRef.current = payload.timestamp;
       lastPasteKeyRef.current = pointerKey;
-      addP2pLog(`HTTPS Cloud: Published state update to Multi-Cloud Relay for Room ${targetCode}`);
+      addP2pLog(`HTTPS Cloud: Published state update for Room ${targetCode}`);
     } else {
       addP2pLog(`HTTPS Cloud Push Warning: All cloud relays unreachable.`);
     }
@@ -394,60 +380,36 @@ function App() {
 
     if (cloudPollingIntervalRef.current) return;
 
-    addP2pLog(`HTTPS Cloud: Activating Triple Multi-Cloud Relay Poll (2s) for Room ${targetCode}...`);
+    addP2pLog(`HTTPS Cloud: Activating Non-Blocking Cloud Relay Listener for Room ${targetCode}...`);
 
     const pollCloud = async () => {
       let data = null;
       let fetchedPointerKey = null;
 
-      // 1. Try ntfy.sh
+      // 1. Fetch from ntfy.sh raw (Immediate non-blocking return)
       try {
-        const res1 = await fetch(`https://ntfy.sh/viva_room_${targetCode}/json?poll=1`);
+        const res1 = await fetch(`https://ntfy.sh/viva_room_${targetCode}/raw?poll=1`);
         if (res1.ok) {
           const text = await res1.text();
           const lines = text.trim().split('\n');
-          for (let i = lines.length - 1; i >= 0; i--) {
-            if (!lines[i].trim()) continue;
-            try {
-              const msg = JSON.parse(lines[i]);
-              if (msg.event === 'message' && msg.message) {
-                const ntfyData = JSON.parse(msg.message);
-                if (ntfyData.ptr) {
-                  fetchedPointerKey = ntfyData.ptr;
-                  break;
-                }
-              }
-            } catch (_e) {}
+          const lastLine = lines[lines.length - 1];
+          if (lastLine && lastLine.trim()) {
+            fetchedPointerKey = lastLine.trim();
           }
         }
       } catch (_err1) {}
 
-      // 2. Try dweet.io if ntfy failed
+      // 2. Fallback to keyvalue.immanuel.co
       if (!fetchedPointerKey) {
         try {
-          const res2 = await fetch(`https://dweet.io/get/latest/dweet/for/viva_room_${targetCode}`);
+          const res2 = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/GetValue/vivaapp123/viva_room_${targetCode}`);
           if (res2.ok) {
-            const json2 = await res2.json();
-            if (json2 && json2.with && json2.with.length > 0 && json2.with[0].content) {
-              if (json2.with[0].content.ptr) {
-                fetchedPointerKey = json2.with[0].content.ptr;
-              }
-            }
-          }
-        } catch (_err2) {}
-      }
-
-      // 3. Try keyvalue.immanuel.co if both failed
-      if (!fetchedPointerKey) {
-        try {
-          const res3 = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/GetValue/vivaapp123/viva_room_${targetCode}`);
-          if (res3.ok) {
-            const rawVal = await res3.text();
+            const rawVal = await res2.text();
             if (rawVal && rawVal !== 'null' && rawVal !== '""') {
               fetchedPointerKey = rawVal.replace(/^"|"$/g, '');
             }
           }
-        } catch (_err3) {}
+        } catch (_err2) {}
       }
 
       // Process fetched pointer key
@@ -507,7 +469,7 @@ function App() {
     };
 
     pollCloud();
-    cloudPollingIntervalRef.current = setInterval(pollCloud, 2000);
+    cloudPollingIntervalRef.current = setInterval(pollCloud, 1500);
   };
 
   const attachWebRtcListeners = (conn, label) => {
