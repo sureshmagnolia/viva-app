@@ -5,15 +5,19 @@ import ComprehensiveVivaApp from './ComprehensiveVivaApp';
 import SyncTab from './components/SyncTab';
 import './index.css';
 
-// PeerJS signaling & WebRTC configuration with public Google STUN servers
+// PeerJS signaling & WebRTC configuration with maximum browser compatibility
 const PEER_OPTIONS = {
   debug: 1,
   config: {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' }
-    ]
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' }
+    ],
+    sdpSemantics: 'unified-plan',
+    iceCandidatePoolSize: 10
   }
 };
 
