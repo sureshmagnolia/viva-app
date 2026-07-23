@@ -5,15 +5,17 @@ import ComprehensiveVivaApp from './ComprehensiveVivaApp';
 import SyncTab from './components/SyncTab';
 import './index.css';
 
-// Public STUN server configuration for cross-device & laptop-to-laptop WebRTC connectivity
-const PEER_CONFIG = {
+// PeerJS signaling & WebRTC configuration
+const PEER_OPTIONS = {
+  host: '0.peerjs.com',
+  port: 443,
+  path: '/',
+  secure: true,
   config: {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun4.l.google.com:19302' }
+      { urls: 'stun:stun2.l.google.com:19302' }
     ]
   },
   debug: 1
@@ -158,7 +160,6 @@ function App() {
       setCompDetails(targetSnapshot.cd);
       setCompStudents(targetSnapshot.cs);
 
-      // Broadcast hard snapshot sync to P2P peer & local tabs
       broadcastGlobalState(targetSnapshot.pd, targetSnapshot.ps, targetSnapshot.cd, targetSnapshot.cs);
 
       setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
@@ -176,7 +177,6 @@ function App() {
       setCompDetails(targetSnapshot.cd);
       setCompStudents(targetSnapshot.cs);
 
-      // Broadcast hard snapshot sync to P2P peer & local tabs
       broadcastGlobalState(targetSnapshot.pd, targetSnapshot.ps, targetSnapshot.cd, targetSnapshot.cs);
 
       setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
@@ -203,7 +203,7 @@ function App() {
   }, [historyIndex, history, canUndo, canRedo]);
 
   // -------------------------------------------------------------
-  // GLOBAL BACKGROUND WEBRTC P2P SYNC ENGINE (STUN-enabled)
+  // GLOBAL BACKGROUND WEBRTC P2P SYNC ENGINE
   // -------------------------------------------------------------
   const [roomCode, setRoomCode] = useState('');
   const [peerStatus, setPeerStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'error'
@@ -222,13 +222,17 @@ function App() {
   };
 
   const initHostPeer = () => {
+    if (peerRef.current) {
+      peerRef.current.destroy();
+    }
+
     const code = generateRoomCode();
     setRoomCode(code);
     setPeerStatus('connecting');
     setStatusMsg('Creating P2P Room...');
 
-    const peerId = `vivamarks-global-${code}`;
-    const peer = new Peer(peerId, PEER_CONFIG);
+    const hostPeerId = `viva-${code}`;
+    const peer = new Peer(hostPeerId, PEER_OPTIONS);
     peerRef.current = peer;
 
     peer.on('open', () => {
@@ -237,13 +241,13 @@ function App() {
     });
 
     peer.on('connection', (conn) => {
-      connRef.current = conn;
       setupConnectionHandlers(conn);
     });
 
     peer.on('error', (err) => {
+      console.error('PeerJS Host Error:', err);
       setPeerStatus('error');
-      setStatusMsg(`P2P Error: ${err.type || err.message}`);
+      setStatusMsg(`P2P Host Error (${err.type || 'unknown'}): ${err.message || 'Could not register room.'}`);
     });
   };
 
@@ -254,39 +258,49 @@ function App() {
       return;
     }
 
+    if (peerRef.current) {
+      peerRef.current.destroy();
+    }
+
     setPeerStatus('connecting');
     setStatusMsg(`Connecting to Room ${cleanCode}...`);
     setRoomCode(cleanCode);
 
-    const peer = new Peer(null, PEER_CONFIG);
+    const peer = new Peer(PEER_OPTIONS);
     peerRef.current = peer;
 
     peer.on('open', () => {
-      const hostPeerId = `vivamarks-global-${cleanCode}`;
-      const conn = peer.connect(hostPeerId);
-      connRef.current = conn;
+      const hostPeerId = `viva-${cleanCode}`;
+      const conn = peer.connect(hostPeerId, { reliable: true });
       setupConnectionHandlers(conn);
     });
 
-    peer.on('error', () => {
+    peer.on('error', (err) => {
+      console.error('PeerJS Guest Error:', err);
       setPeerStatus('error');
-      setStatusMsg(`Connection failed: Check Room Code or Wi-Fi network.`);
+      setStatusMsg(`Connection error (${err.type || 'unknown'}): ${err.message || 'Host room not found or connection failed.'}`);
     });
   };
 
   const setupConnectionHandlers = (conn) => {
-    conn.on('open', () => {
+    connRef.current = conn;
+
+    const handleConnected = () => {
       setPeerStatus('connected');
-      setStatusMsg('Connected! Background sync is live across all devices.');
-      // Broadcast initial full state
+      setStatusMsg('Connected! Live background sync active.');
       broadcastGlobalState(projectDetails, projectStudents, compDetails, compStudents);
-    });
+    };
+
+    if (conn.open) {
+      handleConnected();
+    } else {
+      conn.on('open', handleConnected);
+    }
 
     conn.on('data', (data) => {
       if (data && data.type === 'GLOBAL_SYNC_STATE') {
         isInternalHistoryChangeRef.current = true;
         try {
-          // Direct 1-to-1 state mirroring across connected devices
           if (data.projectDetails) setProjectDetails(data.projectDetails);
           if (data.projectStudents) setProjectStudents(data.projectStudents);
           if (data.compDetails) setCompDetails(data.compDetails);
@@ -308,7 +322,7 @@ function App() {
 
     conn.on('error', (err) => {
       setPeerStatus('error');
-      setStatusMsg(`P2P Error: ${err.message}`);
+      setStatusMsg(`Connection error: ${err.message}`);
     });
   };
 
