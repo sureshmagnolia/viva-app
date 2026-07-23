@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Wifi, FileText, CheckCircle2, AlertCircle, RefreshCw, Copy, Check, Smartphone, HelpCircle, Terminal, Trash2 } from 'lucide-react';
+import { Wifi, FileText, CheckCircle2, AlertCircle, RefreshCw, Copy, Check, Smartphone, HelpCircle, Terminal, Trash2, RotateCw } from 'lucide-react';
 import { mergeStudentData } from '../utils/mergeUtils';
 
 function SyncTab({ 
@@ -38,6 +38,12 @@ function SyncTab({
     setTimeout(() => setCopiedLogs(false), 2000);
   };
 
+  const forceCacheClearReload = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('v', Date.now());
+    window.location.href = url.toString();
+  };
+
   // Smart JSON File Import
   const handleSmartJsonImport = (event) => {
     const file = event.target.files[0];
@@ -69,7 +75,7 @@ function SyncTab({
   return (
     <div className="glass-panel" style={{ padding: '1.5rem', background: '#1e1e2e', color: '#fff', borderRadius: '16px' }}>
       
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem', marginBottom: '1.25rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Wifi color="#38bdf8" size={32} />
           <div>
@@ -82,12 +88,22 @@ function SyncTab({
           </div>
         </div>
 
-        {peerStatus === 'connected' && (
-          <div style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid #22c55e', color: '#4ade80', padding: '6px 14px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }}></span>
-            Background Sync Active (Room: {roomCode})
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button 
+            onClick={forceCacheClearReload}
+            style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', color: '#fca5a5', padding: '6px 12px', borderRadius: '8px', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}
+            title="Bypass browser cache and load the latest build version"
+          >
+            <RotateCw size={14} /> Force Load Latest Build
+          </button>
+
+          {peerStatus === 'connected' && (
+            <div style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid #22c55e', color: '#4ade80', padding: '6px 14px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }}></span>
+              Background Sync Active (Room: {roomCode})
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Sub-Tabs */}
@@ -97,7 +113,7 @@ function SyncTab({
           onClick={() => setActiveSubTab('p2p')}
           style={{ flex: 1, padding: '10px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
         >
-          <Wifi size={18} /> Live WebRTC P2P Room
+          <Wifi size={18} /> Live WebRTC P2P & HTTPS Cloud Room
         </button>
         <button
           className={`tab-btn ${activeSubTab === 'json' ? 'active' : ''}`}
@@ -148,7 +164,7 @@ function SyncTab({
                 <h3 style={{ margin: '0 0 0.5rem 0', color: '#38bdf8' }}>Host Examiner (Create Room)</h3>
                 <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '1.25rem' }}>Generate a room code to share with your co-examiner.</p>
                 <button className="btn btn-primary" onClick={initHostPeer} style={{ width: '100%', padding: '12px', fontSize: '1rem', fontWeight: 600 }}>
-                  Create P2P Room
+                  Create Sync Room
                 </button>
               </div>
 
@@ -191,7 +207,7 @@ function SyncTab({
 
               {peerStatus === 'connecting' && (
                 <div style={{ marginTop: '1rem', fontSize: '0.82rem', color: '#fef08a', background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: '6px', display: 'inline-block' }}>
-                  💡 <i>Taking longer than 10s? If using College Wi-Fi, try connecting both laptops to a Mobile Hotspot.</i>
+                  💡 <i>Connecting over WebRTC & HTTPS Cloud Relay...</i>
                 </div>
               )}
 
@@ -202,7 +218,7 @@ function SyncTab({
               )}
 
               <button className="btn btn-danger" onClick={disconnectPeer} style={{ marginTop: '1.25rem', padding: '8px 20px' }}>
-                Disconnect P2P Session
+                Disconnect Sync Session
               </button>
             </div>
           )}
@@ -222,7 +238,7 @@ function SyncTab({
           <div style={{ marginTop: '1rem', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
             <div style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#38bdf8', fontWeight: 'bold' }}>
-                <Terminal size={16} /> Real-time P2P Diagnostic Logs ({p2pLogs.length})
+                <Terminal size={16} /> Real-time Sync Diagnostic Logs ({p2pLogs.length})
               </div>
               <div style={{ display: 'flex', gap: '6px' }}>
                 <button 
@@ -247,7 +263,7 @@ function SyncTab({
 
             <div style={{ padding: '10px', maxHeight: '180px', overflowY: 'auto', fontFamily: 'monospace', fontSize: '0.78rem', color: '#a5f3fc', lineHeight: '1.5' }}>
               {p2pLogs.length === 0 ? (
-                <span style={{ color: '#64748b' }}>No connection logs captured yet. Click "Create P2P Room" or "Connect to Room" to begin tracing.</span>
+                <span style={{ color: '#64748b' }}>No connection logs captured yet. Click "Create Sync Room" or "Connect to Room" to begin tracing.</span>
               ) : (
                 p2pLogs.map((log, i) => (
                   <div key={i} style={{ borderBottom: '1px dashed rgba(255,255,255,0.05)', padding: '2px 0' }}>
