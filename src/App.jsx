@@ -6,7 +6,7 @@ import SyncTab from './components/SyncTab';
 import './index.css';
 
 // Build version for cache verification
-const APP_VERSION = "v1.4.0 (Dual-Cloud Failover Engine)";
+const APP_VERSION = "v1.5.0 (Base64 Cloud Engine)";
 
 // PeerJS signaling & WebRTC configuration with static IP & domain STUN/TURN relays
 const PEER_OPTIONS = {
@@ -32,6 +32,23 @@ const PEER_OPTIONS = {
     iceCandidatePoolSize: 10
   }
 };
+
+// URL-safe Base64 Encoders for Cloud Key-Value API
+function toBase64Url(str) {
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function fromBase64Url(b64url) {
+  let b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+  while (b64.length % 4) b64 += '=';
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
 
 function App() {
   const queryParams = new URLSearchParams(window.location.search);
@@ -215,7 +232,7 @@ function App() {
   }, [historyIndex, history, canUndo, canRedo]);
 
   // -------------------------------------------------------------
-  // DUAL-ENGINE SYNC: WEBRTC P2P + MULTI-CLOUD RELAY FALLBACK ENGINE
+  // DUAL-ENGINE SYNC: WEBRTC P2P + BASE64 CLOUD RELAY ENGINE
   // -------------------------------------------------------------
   const [roomCode, setRoomCode] = useState('');
   const [peerStatus, setPeerStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'error'
@@ -254,7 +271,7 @@ function App() {
 
   const disconnectPeer = () => {
     addP2pLog('Disconnecting Sync Session...');
-    if (cloudPollingIntervalRef.current) {
+    if (cloudPollingIntervalRef) {
       clearInterval(cloudPollingIntervalRef.current);
       cloudPollingIntervalRef.current = null;
     }
@@ -277,7 +294,7 @@ function App() {
     activeRoomCodeRef.current = '';
   };
 
-  // HTTPS Multi-Cloud Relay API (ntfy.sh + keyvalue.immanuel.co dual failover)
+  // HTTPS Base64 Cloud Relay API (keyvalue.immanuel.co + ntfy.sh failover)
   const pushToHttpsCloud = async (pd, ps, cd, cs, codeOverride) => {
     const targetCode = codeOverride || activeRoomCodeRef.current || roomCode;
     if (!targetCode) return;
@@ -291,42 +308,44 @@ function App() {
       timestamp: Date.now()
     };
     const payloadStr = JSON.stringify(payload);
+    const b64Payload = toBase64Url(payloadStr);
 
     let published = false;
 
-    // 1. Try Primary Cloud Relay: ntfy.sh
+    // 1. Primary Cloud Relay: keyvalue.immanuel.co (Base64 encoded)
     try {
-      const res1 = await fetch(`https://ntfy.sh/viva_room_${targetCode}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payloadStr
+      const res1 = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/vivaapp123/viva_room_${targetCode}/${b64Payload}`, {
+        method: 'POST'
       });
       if (res1.ok) {
         published = true;
         lastHttpsTsRef.current = payload.timestamp;
-        addP2pLog(`HTTPS Cloud (ntfy): Published state update for Room ${targetCode}`);
-      }
-    } catch (_err1) {
-      // ntfy blocked by campus network
-    }
-
-    // 2. Try Secondary Cloud Relay: keyvalue.immanuel.co
-    try {
-      const encoded = encodeURIComponent(payloadStr);
-      const res2 = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/vivaapp123/viva_room_${targetCode}/${encoded}`, {
-        method: 'POST'
-      });
-      if (res2.ok) {
-        published = true;
-        lastHttpsTsRef.current = payload.timestamp;
         addP2pLog(`HTTPS Cloud (keyvalue): Published state update for Room ${targetCode}`);
       }
-    } catch (_err2) {
-      // keyvalue blocked or failed
+    } catch (_err1) {
+      // primary keyvalue failed
+    }
+
+    // 2. Secondary Cloud Relay: ntfy.sh
+    if (!published) {
+      try {
+        const res2 = await fetch(`https://ntfy.sh/viva_room_${targetCode}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payloadStr
+        });
+        if (res2.ok) {
+          published = true;
+          lastHttpsTsRef.current = payload.timestamp;
+          addP2pLog(`HTTPS Cloud (ntfy): Published state update for Room ${targetCode}`);
+        }
+      } catch (_err2) {
+        // ntfy blocked
+      }
     }
 
     if (!published) {
-      addP2pLog(`HTTPS Cloud Push Warning: Cloud relays busy or blocked.`);
+      addP2pLog(`HTTPS Cloud Push Warning: Cloud relays unreachable.`);
     }
   };
 
@@ -335,50 +354,48 @@ function App() {
     if (!targetCode) return;
 
     if (cloudPollingIntervalRef.current) clearInterval(cloudPollingIntervalRef.current);
-    addP2pLog(`HTTPS Cloud: Activating Multi-Cloud REST Relay listener for Room ${targetCode}...`);
+    addP2pLog(`HTTPS Cloud: Activating Base64 Cloud Relay listener for Room ${targetCode}...`);
 
-    setPeerStatus('connected');
     setSyncMode('https');
-    setStatusMsg(`Connected via HTTPS Cloud Relay (Room ${targetCode})`);
 
     cloudPollingIntervalRef.current = setInterval(async () => {
       let data = null;
 
-      // 1. Try ntfy.sh first
+      // 1. Try keyvalue.immanuel.co (Base64)
       try {
-        const res1 = await fetch(`https://ntfy.sh/viva_room_${targetCode}/json?poll=1`);
+        const res1 = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/GetValue/vivaapp123/viva_room_${targetCode}`);
         if (res1.ok) {
-          const text = await res1.text();
-          const lines = text.trim().split('\n');
-          for (let i = lines.length - 1; i >= 0; i--) {
-            if (!lines[i].trim()) continue;
-            try {
-              const msg = JSON.parse(lines[i]);
-              if (msg.event === 'message' && msg.message) {
-                data = JSON.parse(msg.message);
-                break;
-              }
-            } catch (_e) {}
+          const rawVal = await res1.text();
+          if (rawVal && rawVal !== 'null' && rawVal !== '""') {
+            const cleanStr = rawVal.replace(/^"|"$/g, '');
+            const decodedStr = fromBase64Url(cleanStr);
+            data = JSON.parse(decodedStr);
           }
         }
-      } catch (_err) {
-        // ntfy blocked by campus firewall -> fallback silently to keyvalue
+      } catch (_err1) {
+        // fallback to ntfy
       }
 
-      // 2. Fallback to keyvalue.immanuel.co if ntfy failed or returned no data
+      // 2. Fallback to ntfy.sh
       if (!data) {
         try {
-          const res2 = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/GetValue/vivaapp123/viva_room_${targetCode}`);
+          const res2 = await fetch(`https://ntfy.sh/viva_room_${targetCode}/json?poll=1`);
           if (res2.ok) {
-            const rawVal = await res2.text();
-            if (rawVal && rawVal !== 'null') {
-              const cleanStr = rawVal.replace(/^"|"$/g, '');
-              const decoded = decodeURIComponent(cleanStr);
-              data = JSON.parse(decoded);
+            const text = await res2.text();
+            const lines = text.trim().split('\n');
+            for (let i = lines.length - 1; i >= 0; i--) {
+              if (!lines[i].trim()) continue;
+              try {
+                const msg = JSON.parse(lines[i]);
+                if (msg.event === 'message' && msg.message) {
+                  data = JSON.parse(msg.message);
+                  break;
+                }
+              } catch (_e) {}
             }
           }
         } catch (_err2) {
-          // secondary failover failed
+          // both failed
         }
       }
 
@@ -391,7 +408,8 @@ function App() {
           if (data.compDetails) setCompDetails(data.compDetails);
           if (data.compStudents) setCompStudents(data.compStudents);
 
-          setStatusMsg(`Synced update received via HTTPS Cloud at ${new Date().toLocaleTimeString()}`);
+          setPeerStatus('connected');
+          setStatusMsg(`Synced update received via Cloud Relay at ${new Date().toLocaleTimeString()}`);
           addP2pLog(`HTTPS Cloud: Synced state update received for Room ${targetCode}`);
         } finally {
           setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
@@ -411,7 +429,7 @@ function App() {
       pc.oniceconnectionstatechange = () => {
         addP2pLog(`${label}: ICE Connection State changed -> ${pc.iceConnectionState}`);
         if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
-          addP2pLog(`${label}: WebRTC blocked by router firewall. Activating HTTPS Cloud Relay fallback...`);
+          addP2pLog(`${label}: WebRTC blocked by router firewall. Activating Cloud Relay fallback...`);
           startHttpsCloudListening(activeRoomCodeRef.current);
         }
       };
@@ -434,7 +452,7 @@ function App() {
     setRoomCode(code);
     activeRoomCodeRef.current = code;
     setPeerStatus('connecting');
-    setStatusMsg('Creating Multi-Device Room...');
+    setStatusMsg(`Room active (${code}). Waiting for guest partner to join...`);
     isHostRef.current = true;
     setSyncMode('p2p');
 
@@ -448,9 +466,9 @@ function App() {
     peer.on('open', (id) => {
       addP2pLog(`Host: Connected to signaling server! Registered ID = ${id}`);
       setPeerStatus('connecting');
-      setStatusMsg(`Room ready! Tell partners to enter code: ${code}`);
+      setStatusMsg(`Room ready! Tell partner to enter code: ${code}`);
 
-      // Publish initial state to HTTPS Cloud Relay
+      // Publish initial state to Cloud Relay
       pushToHttpsCloud(projectDetails, projectStudents, compDetails, compStudents, code);
       // Start fallback listener
       startHttpsCloudListening(code);
@@ -462,7 +480,7 @@ function App() {
     });
 
     peer.on('error', (err) => {
-      addP2pLog(`Host: P2P Error (${err.type}): ${err.message}. Enabling HTTPS Cloud Relay...`);
+      addP2pLog(`Host: P2P Error (${err.type}): ${err.message}. Enabling Cloud Relay...`);
       console.error('PeerJS Host Error:', err);
       startHttpsCloudListening(code);
     });
@@ -506,6 +524,7 @@ function App() {
           });
 
           const totalDevices = hostConnectionsRef.current.size + 1;
+          setPeerStatus('connected');
           setStatusMsg(`Synced update (${totalDevices} devices) at ${new Date().toLocaleTimeString()}`);
         } catch (e) {
           console.error('Failed to parse incoming P2P packet', e);
@@ -553,7 +572,7 @@ function App() {
     const peer = new Peer(PEER_OPTIONS);
     peerRef.current = peer;
 
-    // Start HTTPS Cloud Relay listener immediately as fallback in case WebRTC fails
+    // Start Cloud Relay listener immediately as fallback in case WebRTC fails
     startHttpsCloudListening(cleanCode);
 
     peer.on('open', (myId) => {
@@ -567,7 +586,7 @@ function App() {
     });
 
     peer.on('error', (err) => {
-      addP2pLog(`Guest: WebRTC Error (${err.type}): ${err.message}. Using HTTPS Cloud Relay fallback!`);
+      addP2pLog(`Guest: WebRTC Error (${err.type}): ${err.message}. Using Cloud Relay fallback!`);
     });
   };
 
@@ -597,6 +616,7 @@ function App() {
           if (data.compDetails) setCompDetails(data.compDetails);
           if (data.compStudents) setCompStudents(data.compStudents);
 
+          setPeerStatus('connected');
           setStatusMsg(`Synced update received at ${new Date().toLocaleTimeString()}`);
         } catch (e) {
           console.error('Failed to parse incoming P2P packet', e);
@@ -730,7 +750,7 @@ function App() {
           3. Live Multi-Device Sync 📡
           {peerStatus === 'connected' && (
             <span style={{ marginLeft: '6px', background: syncMode === 'p2p' ? '#22c55e' : '#eab308', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>
-              {syncMode === 'p2p' ? `Room ${roomCode}` : `HTTPS ${roomCode}`}
+              {syncMode === 'p2p' ? `Room ${roomCode}` : `Cloud ${roomCode}`}
             </span>
           )}
         </button>
