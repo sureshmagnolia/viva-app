@@ -34,6 +34,11 @@ const PEER_OPTIONS = {
   }
 };
 
+const createPeerInstance = (...args) => {
+  const PeerConstructor = (typeof Peer === 'function' ? Peer : (Peer && (Peer.Peer || Peer.default))) || Peer;
+  return new PeerConstructor(...args);
+};
+
 // URL-safe Base64 Encoders for Cloud Key-Value API
 function toBase64Url(str) {
   const bytes = new TextEncoder().encode(str);
@@ -572,7 +577,7 @@ function App() {
     addP2pLog(`Host: Initializing PeerJS with Host ID = ${hostPeerId}`);
     addP2pLog(`Host: App Version = ${APP_VERSION}`);
 
-    const peer = new Peer(hostPeerId, PEER_OPTIONS);
+    const peer = createPeerInstance(hostPeerId, PEER_OPTIONS);
     peerRef.current = peer;
 
     peer.on('open', (id) => {
@@ -695,7 +700,7 @@ function App() {
     addP2pLog(`Guest: Initializing PeerJS client to join room: ${cleanCode}`);
     addP2pLog(`Guest: App Version = ${APP_VERSION}`);
 
-    const peer = new Peer(PEER_OPTIONS);
+    const peer = createPeerInstance(PEER_OPTIONS);
     peerRef.current = peer;
 
     // Start Cloud Relay listener immediately as fallback in case WebRTC fails
