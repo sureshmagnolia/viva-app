@@ -6,7 +6,7 @@ import SyncTab from './components/SyncTab';
 import './index.css';
 
 // Build version for cache verification
-const APP_VERSION = "v1.8.1 (Cloud Ping Fix)";
+const APP_VERSION = "v1.8.2 (Cloud Ping Fix 2)";
 
 // PeerJS signaling & WebRTC configuration with static IP & domain STUN/TURN relays
 const PEER_OPTIONS = {
@@ -473,6 +473,14 @@ function App() {
       }
 
       if (data && data.timestamp) {
+        if (!isHostRef.current && !hasSentCloudPingRef.current) {
+          hasSentCloudPingRef.current = true;
+          // Ping the cloud so the Host knows we arrived!
+          setTimeout(() => {
+            pushToHttpsCloud(data.projectDetails, data.projectStudents, data.compDetails, data.compStudents, targetCode, Date.now());
+          }, 100);
+        }
+
         if (data.timestamp > lastHttpsTsRef.current) {
           lastHttpsTsRef.current = data.timestamp;
           // fetchedPointerKey logic removed because we now update it eagerly before parsing
@@ -502,19 +510,7 @@ function App() {
         } else if (!isHostRef.current) {
           // If we are a guest and we fetched the cloud state (even if no edits happened yet),
           // we are successfully connected to the cloud room.
-          setPeerStatus(prev => {
-            if (prev === 'disconnected' || prev === 'connecting') {
-              if (!hasSentCloudPingRef.current) {
-                hasSentCloudPingRef.current = true;
-                // Ping the cloud so the Host knows we arrived!
-                setTimeout(() => {
-                  pushToHttpsCloud(data.projectDetails, data.projectStudents, data.compDetails, data.compStudents, targetCode, Date.now());
-                }, 100);
-              }
-              return 'connected';
-            }
-            return prev;
-          });
+          setPeerStatus(prev => (prev === 'disconnected' || prev === 'connecting' ? 'connected' : prev));
           setSyncMode(prev => (prev === 'p2p' ? 'p2p' : 'https'));
         }
       }
