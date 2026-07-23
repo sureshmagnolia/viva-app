@@ -874,8 +874,19 @@ function App() {
         </button>
       </nav>
 
-      <div style={{ padding: '4px 16px', background: 'rgba(0,0,0,0.3)', color: '#64748b', fontSize: '0.75rem', textAlign: 'right' }}>
-        App Build Version: <strong style={{ color: '#38bdf8' }}>{APP_VERSION}</strong>
+      <div style={{ padding: '4px 16px', background: 'rgba(0,0,0,0.3)', color: '#64748b', fontSize: '0.75rem', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px' }}>
+        <span>App Build Version: <strong style={{ color: '#38bdf8' }}>{APP_VERSION}</strong></span>
+        <button 
+          onClick={() => {
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+            }
+            window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
+          }} 
+          style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '3px 10px', borderRadius: '4px', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 'bold' }}
+        >
+          ⚡ Force Load Latest Version
+        </button>
       </div>
 
       <div className="master-content">
