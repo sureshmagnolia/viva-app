@@ -684,6 +684,7 @@ function App() {
   const initHostPeer = () => {
     disconnectPeer();
     clearP2pLogs();
+    setConnectionLostReason(null);
 
     const code = generateRoomCode();
     setRoomCode(code);
@@ -1040,21 +1041,28 @@ function App() {
           </div>
         </div>
 
-        {peerStatus === 'connected' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '6px 14px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>My Role:</span>
-            <span style={{ 
-              fontSize: '0.8rem', 
-              fontWeight: 'bold', 
-              padding: '2px 8px', 
-              borderRadius: '10px',
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.3)', padding: '4px 12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.15)' }}>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>My Device Role:</span>
+          <select
+            value={deviceRole}
+            onChange={(e) => setDeviceRole(e.target.value)}
+            style={{
               backgroundColor: deviceRole === 'ex1' ? '#15803d' : deviceRole === 'ex2' ? '#1d4ed8' : '#7c3aed',
-              color: '#fff'
-            }}>
-              {deviceRole === 'ex1' ? 'Examiner 1' : deviceRole === 'ex2' ? 'Examiner 2' : 'Chairman / Viewer'}
-            </span>
-          </div>
-        )}
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '4px 10px',
+              fontSize: '0.8rem',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              outline: 'none'
+            }}
+          >
+            <option value="ex1" style={{ background: '#1e1b4b', color: '#4ade80' }}>Examiner 1</option>
+            <option value="ex2" style={{ background: '#1e1b4b', color: '#60a5fa' }}>Examiner 2</option>
+            <option value="viewer" style={{ background: '#1e1b4b', color: '#c084fc' }}>Chairman / Viewer</option>
+          </select>
+        </div>
       </header>
 
       <nav className="master-tabs">
@@ -1081,8 +1089,70 @@ function App() {
               {syncMode === 'p2p' ? `Room ${roomCode}` : `Cloud ${roomCode}`}
             </span>
           )}
+          {peerStatus === 'disconnected' && connectionLostReason && (
+            <span style={{ marginLeft: '6px', background: '#d97706', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>
+              Offline (Saved)
+            </span>
+          )}
         </button>
       </nav>
+
+      {/* Non-intrusive subtle alert banner when sync connection is dropped */}
+      {connectionLostReason && (
+        <div style={{
+          background: 'linear-gradient(90deg, #78350f, #92400e)',
+          borderBottom: '1px solid #f59e0b',
+          color: '#fef3c7',
+          padding: '8px 16px',
+          fontSize: '0.85rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '10px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '1.1rem' }}>📡</span>
+            <span>
+              <strong>Offline Sync Mode:</strong> {connectionLostReason} — <span style={{ color: '#86efac' }}>All your grade entries are safely stored in IndexedDB and will automatically sync when you rejoin!</span>
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              onClick={() => handleTabSwitch('sync')}
+              style={{
+                background: '#f59e0b',
+                color: '#0f172a',
+                border: 'none',
+                padding: '4px 12px',
+                borderRadius: '6px',
+                fontWeight: 'bold',
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Rejoin Room 🔄
+            </button>
+            <button
+              onClick={() => setConnectionLostReason(null)}
+              style={{
+                background: 'transparent',
+                color: '#fde68a',
+                border: 'none',
+                fontSize: '1.1rem',
+                cursor: 'pointer',
+                padding: '0 4px',
+                lineHeight: 1
+              }}
+              title="Dismiss notification"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       <div style={{ padding: '4px 16px', background: 'rgba(0,0,0,0.3)', color: '#64748b', fontSize: '0.75rem', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px' }}>
         <span>App Build Version: <strong style={{ color: '#38bdf8' }}>{APP_VERSION}</strong></span>
@@ -1143,66 +1213,6 @@ function App() {
           />
         )}
       </div>
-
-      {connectionLostReason && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(10px)',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          justify: 'center',
-          padding: '1rem'
-        }}>
-          <div style={{
-            background: 'linear-gradient(135deg, #1e1b4b, #0f172a)',
-            border: '2px solid #ef4444',
-            borderRadius: '16px',
-            padding: '1.75rem',
-            maxWidth: '480px',
-            width: '100%',
-            textAlign: 'center',
-            boxShadow: '0 20px 50px rgba(239, 68, 68, 0.3)',
-            color: '#fff'
-          }}>
-            <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🔌</div>
-            <h2 style={{ fontSize: '1.35rem', color: '#fca5a5', marginBottom: '0.75rem', fontWeight: 'bold' }}>
-              Sync Connection Lost!
-            </h2>
-            <p style={{ fontSize: '0.9rem', color: '#cbd5e1', marginBottom: '1.25rem', lineHeight: '1.5' }}>
-              {connectionLostReason}
-            </p>
-            <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '10px 14px', borderRadius: '8px', fontSize: '0.82rem', color: '#f87171', marginBottom: '1.5rem', textAlign: 'left' }}>
-              💡 <b>Data Safety Note:</b> All your local grade entries are safely stored in IndexedDB. Ask the Host for the new room code and click below to rejoin.
-            </div>
-            <button
-              onClick={() => {
-                setConnectionLostReason(null);
-                handleTabSwitch('sync');
-              }}
-              style={{
-                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                color: '#fff',
-                border: 'none',
-                padding: '12px 24px',
-                borderRadius: '10px',
-                fontWeight: 'bold',
-                fontSize: '0.95rem',
-                cursor: 'pointer',
-                width: '100%',
-                boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)'
-              }}
-            >
-              Rejoin Live Sync Session
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

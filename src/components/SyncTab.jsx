@@ -152,69 +152,43 @@ function SyncTab({
               Select which role this computer will perform to prevent editing conflicts with other connected devices in the room.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => setDeviceRole('ex1')}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', background: 'rgba(0,0,0,0.25)', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <label htmlFor="deviceRoleSelect" style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#e2e8f0' }}>
+                Select Role:
+              </label>
+              <select
+                id="deviceRoleSelect"
+                value={deviceRole}
+                onChange={(e) => setDeviceRole(e.target.value)}
                 style={{
-                  padding: '12px',
+                  background: deviceRole === 'ex1' ? '#15803d' : deviceRole === 'ex2' ? '#1d4ed8' : '#7c3aed',
+                  color: '#ffffff',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
                   borderRadius: '8px',
-                  border: deviceRole === 'ex1' ? '2px solid #22c55e' : '1px solid rgba(255, 255, 255, 0.1)',
-                  background: deviceRole === 'ex1' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(0, 0, 0, 0.3)',
-                  color: deviceRole === 'ex1' ? '#4ade80' : '#cbd5e1',
-                  fontWeight: deviceRole === 'ex1' ? 'bold' : 'normal',
+                  padding: '8px 14px',
+                  fontSize: '0.9rem',
+                  fontWeight: 'bold',
                   cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '4px'
+                  minWidth: '220px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  outline: 'none'
                 }}
               >
-                <span>Examiner 1</span>
-                <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Edits Examiner 1 Marks</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDeviceRole('ex2')}
-                style={{
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: deviceRole === 'ex2' ? '2px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.1)',
-                  background: deviceRole === 'ex2' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(0, 0, 0, 0.3)',
-                  color: deviceRole === 'ex2' ? '#60a5fa' : '#cbd5e1',
-                  fontWeight: deviceRole === 'ex2' ? 'bold' : 'normal',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                <span>Examiner 2</span>
-                <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Edits Examiner 2 Marks</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDeviceRole('viewer')}
-                style={{
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: deviceRole === 'viewer' ? '2px solid #a855f7' : '1px solid rgba(255, 255, 255, 0.1)',
-                  background: deviceRole === 'viewer' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(0, 0, 0, 0.3)',
-                  color: deviceRole === 'viewer' ? '#c084fc' : '#cbd5e1',
-                  fontWeight: deviceRole === 'viewer' ? 'bold' : 'normal',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                <span>Chairman / Viewer</span>
-                <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Read-Only / Monitoring</span>
-              </button>
+                <option value="ex1" style={{ background: '#1e1b4b', color: '#4ade80' }}>
+                  Examiner 1 (Edits Examiner 1 Marks)
+                </option>
+                <option value="ex2" style={{ background: '#1e1b4b', color: '#60a5fa' }}>
+                  Examiner 2 (Edits Examiner 2 Marks)
+                </option>
+                <option value="viewer" style={{ background: '#1e1b4b', color: '#c084fc' }}>
+                  Chairman / Viewer (Read-Only Monitoring)
+                </option>
+              </select>
+              <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                {deviceRole === 'ex1' && '• Configured to enter Examiner 1 marks'}
+                {deviceRole === 'ex2' && '• Configured to enter Examiner 2 marks'}
+                {deviceRole === 'viewer' && '• Monitoring & Read-only mode'}
+              </span>
             </div>
           </div>
 
