@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Peer from 'peerjs';
+import { Share2 } from 'lucide-react';
 import ProjectVivaApp from './ProjectVivaApp';
 import ComprehensiveVivaApp from './ComprehensiveVivaApp';
 import SyncTab from './components/SyncTab';
@@ -794,9 +795,6 @@ function App() {
         type: 'GLOBAL_SYNC_STATE',
         projectDetails: pd,
         projectStudents: ps,
-        compDetails: cd,
-        compStudents: cs,
-        senderRole: deviceRole,
         senderName: deviceName,
         senderActiveTab: currentAppTab,
         timestamp: ts
@@ -899,7 +897,7 @@ function App() {
       <header className="master-header glass-panel" style={{ background: 'linear-gradient(135deg, #1e1b4b, #311b92)', padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ background: 'linear-gradient(135deg, #6366f1, #a855f7)', padding: '10px', borderRadius: '12px', display: 'flex' }}>
-            <Peer size={28} color="#fff" />
+            <Share2 size={28} color="#fff" />
           </div>
           <div>
             <h1 style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#fff', margin: 0, letterSpacing: '-0.02em' }}>
@@ -912,7 +910,7 @@ function App() {
         </div>
 
         {peerStatus === 'connected' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(15, 23, 42, 0.6)', padding: '6px 14px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '6px 14px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)' }}>
             <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>My Role:</span>
             <span style={{ 
               fontSize: '0.8rem', 
