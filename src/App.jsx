@@ -5,6 +5,7 @@ import ProjectVivaApp from './ProjectVivaApp';
 import ComprehensiveVivaApp from './ComprehensiveVivaApp';
 import SyncTab from './components/SyncTab';
 import { saveToIndexedDB, getFromIndexedDB } from './utils/indexedDB';
+import { mergeStudentData } from './utils/mergeUtils';
 import './index.css';
 
 // Build version for cache verification
@@ -638,10 +639,15 @@ function App() {
 
           isInternalHistoryChangeRef.current = true;
           try {
+            const incomingRole = data.senderRole || 'all';
             if (data.projectDetails) setProjectDetails(data.projectDetails);
-            if (data.projectStudents) setProjectStudents(data.projectStudents);
+            if (data.projectStudents && Array.isArray(data.projectStudents)) {
+              setProjectStudents(prev => mergeStudentData(prev, data.projectStudents, 'ProjectVivaApp', incomingRole));
+            }
             if (data.compDetails) setCompDetails(data.compDetails);
-            if (data.compStudents) setCompStudents(data.compStudents);
+            if (data.compStudents && Array.isArray(data.compStudents)) {
+              setCompStudents(prev => mergeStudentData(prev, data.compStudents, 'ComprehensiveVivaApp', incomingRole));
+            }
 
             setStatusMsg(`Synced update received via Cloud Relay at ${new Date().toLocaleTimeString()}`);
             addP2pLog(`HTTPS Cloud: Synced state update received for Room ${targetCode}`);
@@ -764,10 +770,15 @@ function App() {
           if (data.timestamp && data.timestamp > lastHttpsTsRef.current) {
             lastHttpsTsRef.current = data.timestamp;
           }
+          const incomingRole = data.senderRole || 'all';
           if (data.projectDetails) setProjectDetails(data.projectDetails);
-          if (data.projectStudents) setProjectStudents(data.projectStudents);
+          if (data.projectStudents && Array.isArray(data.projectStudents)) {
+            setProjectStudents(prev => mergeStudentData(prev, data.projectStudents, 'ProjectVivaApp', incomingRole));
+          }
           if (data.compDetails) setCompDetails(data.compDetails);
-          if (data.compStudents) setCompStudents(data.compStudents);
+          if (data.compStudents && Array.isArray(data.compStudents)) {
+            setCompStudents(prev => mergeStudentData(prev, data.compStudents, 'ComprehensiveVivaApp', incomingRole));
+          }
 
           // Relay to ALL OTHER connected guest devices in the room over WebRTC!
           hostConnectionsRef.current.forEach((otherConn, peerId) => {
@@ -858,6 +869,9 @@ function App() {
       setPeerStatus('connected');
       setSyncMode('p2p');
       setStatusMsg(`Connected to Room ${roomCode || activeRoomCodeRef.current}! Multi-device background sync active.`);
+
+      // CRITICAL OFFLINE SYNC FIX: Immediately transmit Guest's offline grade entries to Host upon connecting!
+      sendStateToConn(conn, projectDetails, projectStudents, compDetails, compStudents);
     };
 
     if (conn.open) {
@@ -877,10 +891,15 @@ function App() {
           if (data.timestamp && data.timestamp > lastHttpsTsRef.current) {
             lastHttpsTsRef.current = data.timestamp;
           }
+          const incomingRole = data.senderRole || 'all';
           if (data.projectDetails) setProjectDetails(data.projectDetails);
-          if (data.projectStudents) setProjectStudents(data.projectStudents);
+          if (data.projectStudents && Array.isArray(data.projectStudents)) {
+            setProjectStudents(prev => mergeStudentData(prev, data.projectStudents, 'ProjectVivaApp', incomingRole));
+          }
           if (data.compDetails) setCompDetails(data.compDetails);
-          if (data.compStudents) setCompStudents(data.compStudents);
+          if (data.compStudents && Array.isArray(data.compStudents)) {
+            setCompStudents(prev => mergeStudentData(prev, data.compStudents, 'ComprehensiveVivaApp', incomingRole));
+          }
 
           checkAndPromptRoleConflict(data.senderRole, data.senderName, connectedPeers);
 

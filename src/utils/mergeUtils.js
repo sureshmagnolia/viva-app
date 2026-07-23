@@ -51,33 +51,66 @@ export const mergeStudentData = (currentStudents = [], incomingStudents = [], ap
       if (incReg) regMap.set(incReg, newStudent);
     } else {
       // In-place update of existing student record
-      if (incStudent.registerNumber !== undefined) target.registerNumber = (incStudent.registerNumber || '').toUpperCase();
-      if (incStudent.name !== undefined) target.name = incStudent.name;
+      if (incStudent.registerNumber !== undefined && incStudent.registerNumber !== '') {
+        target.registerNumber = (incStudent.registerNumber || '').toUpperCase();
+      }
+      if (incStudent.name !== undefined && incStudent.name !== '') {
+        target.name = incStudent.name;
+      }
 
       if (appType === 'ProjectVivaApp') {
-        if (incStudent.topic !== undefined) target.topic = incStudent.topic;
+        if (incStudent.topic !== undefined && incStudent.topic !== '') {
+          target.topic = incStudent.topic;
+        }
 
         if (mergeRole === 'all') {
           ['structural', 'editing', 'references', 'title', 'supporting', 'results', 'novelty'].forEach(field => {
-            if (incStudent[field] !== undefined) target[field] = incStudent[field];
+            if (incStudent[field] !== undefined && incStudent[field] !== null && incStudent[field] !== '') {
+              target[field] = incStudent[field];
+            }
           });
         }
 
         if (mergeRole === 'ex1' || mergeRole === 'all') {
-          if (incStudent.presentationEx1 !== undefined) target.presentationEx1 = incStudent.presentationEx1;
-          if (incStudent.vivaEx1 !== undefined) target.vivaEx1 = incStudent.vivaEx1;
+          if (incStudent.presentationEx1 !== undefined && incStudent.presentationEx1 !== null && incStudent.presentationEx1 !== '') {
+            target.presentationEx1 = incStudent.presentationEx1;
+          }
+          if (incStudent.vivaEx1 !== undefined && incStudent.vivaEx1 !== null && incStudent.vivaEx1 !== '') {
+            target.vivaEx1 = incStudent.vivaEx1;
+          }
         }
 
         if (mergeRole === 'ex2' || mergeRole === 'all') {
-          if (incStudent.presentationEx2 !== undefined) target.presentationEx2 = incStudent.presentationEx2;
-          if (incStudent.vivaEx2 !== undefined) target.vivaEx2 = incStudent.vivaEx2;
+          if (incStudent.presentationEx2 !== undefined && incStudent.presentationEx2 !== null && incStudent.presentationEx2 !== '') {
+            target.presentationEx2 = incStudent.presentationEx2;
+          }
+          if (incStudent.vivaEx2 !== undefined && incStudent.vivaEx2 !== null && incStudent.vivaEx2 !== '') {
+            target.vivaEx2 = incStudent.vivaEx2;
+          }
         }
       } else if (appType === 'ComprehensiveVivaApp') {
         if ((mergeRole === 'ex1' || mergeRole === 'all') && incStudent.ex1) {
-          target.ex1 = { ...(target.ex1 || {}), ...incStudent.ex1 };
+          const targetEx1 = target.ex1 || {};
+          const mergedEx1 = { ...targetEx1 };
+          Object.keys(incStudent.ex1).forEach(k => {
+            const incVal = incStudent.ex1[k];
+            if (incVal !== undefined && incVal !== null && incVal !== '') {
+              mergedEx1[k] = incVal;
+            }
+          });
+          target.ex1 = mergedEx1;
         }
+
         if ((mergeRole === 'ex2' || mergeRole === 'all') && incStudent.ex2) {
-          target.ex2 = { ...(target.ex2 || {}), ...incStudent.ex2 };
+          const targetEx2 = target.ex2 || {};
+          const mergedEx2 = { ...targetEx2 };
+          Object.keys(incStudent.ex2).forEach(k => {
+            const incVal = incStudent.ex2[k];
+            if (incVal !== undefined && incVal !== null && incVal !== '') {
+              mergedEx2[k] = incVal;
+            }
+          });
+          target.ex2 = mergedEx2;
         }
       }
 
