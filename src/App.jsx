@@ -244,6 +244,7 @@ function App() {
   const lastHttpsTsRef = useRef(0);
   const lastPasteKeyRef = useRef('');
   const cloudPollingIntervalRef = useRef(null);
+  const hasSentCloudPingRef = useRef(false);
 
   const addP2pLog = (msg) => {
     const time = new Date().toLocaleTimeString();
@@ -302,13 +303,14 @@ function App() {
     const targetCode = codeOverride || activeRoomCodeRef.current || roomCode;
     if (!targetCode) return;
 
+    const ts = incomingTs || Date.now();
     const payload = {
       type: 'GLOBAL_SYNC_STATE',
       projectDetails: pd,
       projectStudents: ps,
       compDetails: cd,
       compStudents: cs,
-      timestamp: incomingTs || Date.now()
+      timestamp: ts
     };
     const payloadStr = JSON.stringify(payload);
     const b64Payload = toBase64Url(payloadStr);
@@ -500,7 +502,19 @@ function App() {
         } else if (!isHostRef.current) {
           // If we are a guest and we fetched the cloud state (even if no edits happened yet),
           // we are successfully connected to the cloud room.
-          setPeerStatus(prev => (prev === 'disconnected' || prev === 'connecting' ? 'connected' : prev));
+          setPeerStatus(prev => {
+            if (prev === 'disconnected' || prev === 'connecting') {
+              if (!hasSentCloudPingRef.current) {
+                hasSentCloudPingRef.current = true;
+                // Ping the cloud so the Host knows we arrived!
+                setTimeout(() => {
+                  pushToHttpsCloud(data.projectDetails, data.projectStudents, data.compDetails, data.compStudents, targetCode, Date.now());
+                }, 100);
+              }
+              return 'connected';
+            }
+            return prev;
+          });
           setSyncMode(prev => (prev === 'p2p' ? 'p2p' : 'https'));
         }
       }
@@ -543,6 +557,7 @@ function App() {
     setPeerStatus('connecting');
     setStatusMsg(`Room active (${code}). Waiting for guest partner to join...`);
     isHostRef.current = true;
+    hasSentCloudPingRef.current = false;
     setSyncMode('p2p');
 
     const hostPeerId = `viva-${code}`;
@@ -662,6 +677,7 @@ function App() {
     disconnectPeer();
     clearP2pLogs();
     isHostRef.current = false;
+    hasSentCloudPingRef.current = false;
 
     setPeerStatus('connecting');
     setStatusMsg(`Connecting to Room ${cleanCode}...`);
@@ -894,7 +910,8 @@ function App() {
           <SyncTab 
             peerStatus={peerStatus}
             statusMsg={statusMsg}
-            roomCode={roomCode}
+            roomCode={roomCode || activeRoomCodeRef.current}
+            isHost={isHostRef.current}
             initHostPeer={initHostPeer}
             joinPeerRoom={joinPeerRoom}
             disconnectPeer={disconnectPeer}

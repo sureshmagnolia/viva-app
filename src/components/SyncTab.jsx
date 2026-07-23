@@ -4,8 +4,9 @@ import { mergeStudentData } from '../utils/mergeUtils';
 
 function SyncTab({ 
   peerStatus, 
-  statusMsg, 
+  statusMsg,
   roomCode, 
+  isHost,
   initHostPeer, 
   joinPeerRoom, 
   disconnectPeer,
@@ -207,7 +208,7 @@ function SyncTab({
 
               {peerStatus === 'connecting' && (
                 <div style={{ marginTop: '1rem', fontSize: '0.82rem', color: '#fef08a', background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: '6px', display: 'inline-block' }}>
-                  💡 <i>Connecting over WebRTC & HTTPS Cloud Relay...</i>
+                  💡 <i>{isHost ? 'Hosting Room over WebRTC & HTTPS Cloud Relay...' : 'Connecting over WebRTC & HTTPS Cloud Relay...'}</i>
                 </div>
               )}
 
