@@ -31,13 +31,7 @@ function App() {
 
   const [projectStudents, setProjectStudents] = useState(() => {
     const saved = localStorage.getItem('viva_marks_students');
-    return saved ? JSON.parse(saved) : [
-      { 
-        id: '1', registerNumber: '', name: '', topic: '',
-        structural: 'A+', editing: 'A+', references: 'A+', title: 'A+', supporting: 'A+', results: 'A+', novelty: 'A+',
-        presentationEx1: 'A+', presentationEx2: 'A+', vivaEx1: 'A+', vivaEx2: 'A+' 
-      }
-    ];
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [compDetails, setCompDetails] = useState(() => {
@@ -46,18 +40,8 @@ function App() {
   });
 
   const [compStudents, setCompStudents] = useState(() => {
-    const defaultGrades = {};
-    for(let i=1; i<=15; i++) defaultGrades[`q${i}`] = 'A+';
     const saved = localStorage.getItem('comp_viva_students');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return parsed.map(s => ({
-        ...s,
-        ex1: s.ex1 || { ...defaultGrades },
-        ex2: s.ex2 || { ...defaultGrades }
-      }));
-    }
-    return [{ id: '1', registerNumber: '', name: '', ex1: { ...defaultGrades }, ex2: { ...defaultGrades } }];
+    return saved ? JSON.parse(saved) : [];
   });
 
   // Auto-save master states to localStorage
@@ -261,14 +245,10 @@ function App() {
         try {
           if (data.isHardReset) {
             // Hard reset or undo/redo sync: overwrite local state directly
-            if (data.projectDetails && data.projectStudents) {
-              setProjectDetails(data.projectDetails);
-              setProjectStudents(data.projectStudents);
-            }
-            if (data.compDetails && data.compStudents) {
-              setCompDetails(data.compDetails);
-              setCompStudents(data.compStudents);
-            }
+            if (data.projectDetails) setProjectDetails(data.projectDetails);
+            if (data.projectStudents) setProjectStudents(data.projectStudents);
+            if (data.compDetails) setCompDetails(data.compDetails);
+            if (data.compStudents) setCompStudents(data.compStudents);
           } else {
             // Normal incremental merge
             if (data.projectDetails && data.projectStudents) {
@@ -324,21 +304,13 @@ function App() {
   const handleResetDataWrapper = (appSource) => {
     if (appSource === 'project') {
       const defaultDetails = { centre: '', date: '', courseCode: '' };
-      const defaultStudents = [
-        { 
-          id: '1', registerNumber: '', name: '', topic: '',
-          structural: 'A+', editing: 'A+', references: 'A+', title: 'A+', supporting: 'A+', results: 'A+', novelty: 'A+',
-          presentationEx1: 'A+', presentationEx2: 'A+', vivaEx1: 'A+', vivaEx2: 'A+' 
-        }
-      ];
+      const defaultStudents = [];
       setProjectDetails(defaultDetails);
       setProjectStudents(defaultStudents);
       broadcastGlobalState(defaultDetails, defaultStudents, compDetails, compStudents, true);
     } else if (appSource === 'comp') {
       const defaultDetails = { centre: '', date: '', courseCode: 'Viva Voce / BOT4V01' };
-      const defaultGrades = {};
-      for(let i=1; i<=15; i++) defaultGrades[`q${i}`] = 'A+';
-      const defaultStudents = [{ id: '1', registerNumber: '', name: '', ex1: { ...defaultGrades }, ex2: { ...defaultGrades } }];
+      const defaultStudents = [];
       setCompDetails(defaultDetails);
       setCompStudents(defaultStudents);
       broadcastGlobalState(projectDetails, projectStudents, defaultDetails, defaultStudents, true);

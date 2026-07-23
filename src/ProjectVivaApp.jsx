@@ -32,13 +32,7 @@ function ProjectVivaApp({
 
   const [internalStudents, setInternalStudents] = useState(() => {
     const saved = localStorage.getItem('viva_marks_students');
-    return saved ? JSON.parse(saved) : [
-      { 
-        id: '1', registerNumber: '', name: '', topic: '',
-        structural: 'A+', editing: 'A+', references: 'A+', title: 'A+', supporting: 'A+', results: 'A+', novelty: 'A+',
-        presentationEx1: 'A+', presentationEx2: 'A+', vivaEx1: 'A+', vivaEx2: 'A+' 
-      }
-    ];
+    return saved ? JSON.parse(saved) : [];
   });
 
   const details = propDetails || internalDetails;
@@ -66,13 +60,7 @@ function ProjectVivaApp({
       localStorage.removeItem('viva_marks_details');
       localStorage.removeItem('viva_marks_students');
       setDetails({ centre: '', date: '', courseCode: '' });
-      setStudents([
-        { 
-          id: '1', registerNumber: '', name: '', topic: '',
-          structural: 'A+', editing: 'A+', references: 'A+', title: 'A+', supporting: 'A+', results: 'A+', novelty: 'A+',
-          presentationEx1: 'A+', presentationEx2: 'A+', vivaEx1: 'A+', vivaEx2: 'A+' 
-        }
-      ]);
+      setStudents([]);
     }
     setCurrentTab('students');
   };

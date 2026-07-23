@@ -31,18 +31,8 @@ function ComprehensiveVivaApp({
   });
 
   const [internalStudents, setInternalStudents] = useState(() => {
-    const defaultGrades = {};
-    for(let i=1; i<=15; i++) defaultGrades[`q${i}`] = 'A+';
     const saved = localStorage.getItem('comp_viva_students');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return parsed.map(s => ({
-        ...s,
-        ex1: s.ex1 || { ...defaultGrades },
-        ex2: s.ex2 || { ...defaultGrades }
-      }));
-    }
-    return [{ id: '1', registerNumber: '', name: '', ex1: { ...defaultGrades }, ex2: { ...defaultGrades } }];
+    return saved ? JSON.parse(saved) : [];
   });
 
   const details = propDetails || internalDetails;
@@ -76,15 +66,7 @@ function ComprehensiveVivaApp({
       localStorage.removeItem('comp_viva_details');
       localStorage.removeItem('comp_viva_students');
       setDetails({ centre: '', date: '', courseCode: 'Viva Voce / BOT4V01' });
-      
-      const defaultGrades = {};
-      for(let i=1; i<=15; i++) defaultGrades[`q${i}`] = 'A+';
-      setStudents([
-        { 
-          id: '1', registerNumber: '', name: '',
-          ex1: { ...defaultGrades }, ex2: { ...defaultGrades }
-        }
-      ]);
+      setStudents([]);
     }
     setCurrentTab('students');
   };
