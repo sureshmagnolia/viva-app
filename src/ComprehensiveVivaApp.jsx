@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BookOpen, Trash2, Download, Upload, Undo2, Redo2 } from 'lucide-react';
+import { clearIndexedDB } from './utils/indexedDB';
 import './index.css';
 
 import DetailsForm from './components/DetailsForm';
@@ -65,6 +66,7 @@ function ComprehensiveVivaApp({
     } else {
       localStorage.removeItem('comp_viva_details');
       localStorage.removeItem('comp_viva_students');
+      clearIndexedDB();
       setDetails({ centre: '', date: '', courseCode: 'Viva Voce / BOT4V01' });
       setStudents([]);
     }

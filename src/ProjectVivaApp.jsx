@@ -7,6 +7,7 @@ import PresentationVivaTab from './components/PresentationVivaTab';
 import MarklistTab from './components/MarklistTab';
 import PrintableMarklist from './components/PrintableMarklist';
 import ClearDataModal from './components/ClearDataModal';
+import { clearIndexedDB } from './utils/indexedDB';
 import './index.css';
 
 function ProjectVivaApp({ 
@@ -59,6 +60,7 @@ function ProjectVivaApp({
     } else {
       localStorage.removeItem('viva_marks_details');
       localStorage.removeItem('viva_marks_students');
+      clearIndexedDB();
       setDetails({ centre: '', date: '', courseCode: '' });
       setStudents([]);
     }
