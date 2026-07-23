@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BookOpen, Trash2, Download, Upload } from 'lucide-react';
+import { BookOpen, Trash2, Download, Upload, Undo2, Redo2 } from 'lucide-react';
 import './index.css';
 
 import DetailsForm from './components/DetailsForm';
@@ -13,7 +13,12 @@ function ComprehensiveVivaApp({
   details: propDetails,
   setDetails: propSetDetails,
   students: propStudents,
-  setStudents: propSetStudents
+  setStudents: propSetStudents,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  onResetData
 }) {
   const queryParams = new URLSearchParams(window.location.search);
   const printMode = queryParams.get('print');
@@ -65,18 +70,22 @@ function ComprehensiveVivaApp({
   };
 
   const handleClearAllData = () => {
-    localStorage.removeItem('comp_viva_details');
-    localStorage.removeItem('comp_viva_students');
-    setDetails({ centre: '', date: '', courseCode: 'Viva Voce / BOT4V01' });
-    
-    const defaultGrades = {};
-    for(let i=1; i<=15; i++) defaultGrades[`q${i}`] = 'A+';
-    setStudents([
-      { 
-        id: '1', registerNumber: '', name: '',
-        ex1: { ...defaultGrades }, ex2: { ...defaultGrades }
-      }
-    ]);
+    if (onResetData) {
+      onResetData();
+    } else {
+      localStorage.removeItem('comp_viva_details');
+      localStorage.removeItem('comp_viva_students');
+      setDetails({ centre: '', date: '', courseCode: 'Viva Voce / BOT4V01' });
+      
+      const defaultGrades = {};
+      for(let i=1; i<=15; i++) defaultGrades[`q${i}`] = 'A+';
+      setStudents([
+        { 
+          id: '1', registerNumber: '', name: '',
+          ex1: { ...defaultGrades }, ex2: { ...defaultGrades }
+        }
+      ]);
+    }
     setCurrentTab('students');
   };
 
@@ -141,6 +150,30 @@ function ComprehensiveVivaApp({
         </div>
         
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%' }} className="header-actions">
+          {onUndo && (
+            <button 
+              className="btn btn-secondary" 
+              onClick={onUndo}
+              disabled={!canUndo}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: canUndo ? 1 : 0.4, cursor: canUndo ? 'pointer' : 'not-allowed' }}
+              title="Undo last change (Ctrl+Z)"
+            >
+              <Undo2 size={18} /> Undo
+            </button>
+          )}
+
+          {onRedo && (
+            <button 
+              className="btn btn-secondary" 
+              onClick={onRedo}
+              disabled={!canRedo}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: canRedo ? 1 : 0.4, cursor: canRedo ? 'pointer' : 'not-allowed' }}
+              title="Redo last change (Ctrl+Y)"
+            >
+              <Redo2 size={18} /> Redo
+            </button>
+          )}
+
           <input 
             type="file" 
             accept=".json" 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FileSpreadsheet, Trash2, Download, Upload } from 'lucide-react';
+import { FileSpreadsheet, Trash2, Download, Upload, Undo2, Redo2 } from 'lucide-react';
 import DetailsForm from './components/DetailsForm';
 import StudentsTab from './components/StudentsTab';
 import ProjectGradesTab from './components/ProjectGradesTab';
@@ -13,7 +13,12 @@ function ProjectVivaApp({
   details: propDetails, 
   setDetails: propSetDetails, 
   students: propStudents, 
-  setStudents: propSetStudents
+  setStudents: propSetStudents,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  onResetData
 }) {
   const queryParams = new URLSearchParams(window.location.search);
   const printMode = queryParams.get('print');
@@ -55,16 +60,20 @@ function ProjectVivaApp({
   };
 
   const handleClearAllData = () => {
-    localStorage.removeItem('viva_marks_details');
-    localStorage.removeItem('viva_marks_students');
-    setDetails({ centre: '', date: '', courseCode: '' });
-    setStudents([
-      { 
-        id: '1', registerNumber: '', name: '', topic: '',
-        structural: 'A+', editing: 'A+', references: 'A+', title: 'A+', supporting: 'A+', results: 'A+', novelty: 'A+',
-        presentationEx1: 'A+', presentationEx2: 'A+', vivaEx1: 'A+', vivaEx2: 'A+' 
-      }
-    ]);
+    if (onResetData) {
+      onResetData();
+    } else {
+      localStorage.removeItem('viva_marks_details');
+      localStorage.removeItem('viva_marks_students');
+      setDetails({ centre: '', date: '', courseCode: '' });
+      setStudents([
+        { 
+          id: '1', registerNumber: '', name: '', topic: '',
+          structural: 'A+', editing: 'A+', references: 'A+', title: 'A+', supporting: 'A+', results: 'A+', novelty: 'A+',
+          presentationEx1: 'A+', presentationEx2: 'A+', vivaEx1: 'A+', vivaEx2: 'A+' 
+        }
+      ]);
+    }
     setCurrentTab('students');
   };
 
@@ -129,6 +138,30 @@ function ProjectVivaApp({
         </div>
         
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%' }} className="header-actions">
+          {onUndo && (
+            <button 
+              className="btn btn-secondary" 
+              onClick={onUndo}
+              disabled={!canUndo}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: canUndo ? 1 : 0.4, cursor: canUndo ? 'pointer' : 'not-allowed' }}
+              title="Undo last change (Ctrl+Z)"
+            >
+              <Undo2 size={18} /> Undo
+            </button>
+          )}
+
+          {onRedo && (
+            <button 
+              className="btn btn-secondary" 
+              onClick={onRedo}
+              disabled={!canRedo}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: canRedo ? 1 : 0.4, cursor: canRedo ? 'pointer' : 'not-allowed' }}
+              title="Redo last change (Ctrl+Y)"
+            >
+              <Redo2 size={18} /> Redo
+            </button>
+          )}
+
           <input 
             type="file" 
             accept=".json" 

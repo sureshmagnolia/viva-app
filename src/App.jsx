@@ -72,6 +72,110 @@ function App() {
   }, [compDetails, compStudents]);
 
   // -------------------------------------------------------------
+  // UNDO & REDO ENGINE
+  // -------------------------------------------------------------
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const isInternalHistoryChangeRef = useRef(false);
+
+  // Record initial snapshot once mounted
+  useEffect(() => {
+    if (history.length === 0) {
+      const initialSnapshot = {
+        pd: JSON.parse(JSON.stringify(projectDetails)),
+        ps: JSON.parse(JSON.stringify(projectStudents)),
+        cd: JSON.parse(JSON.stringify(compDetails)),
+        cs: JSON.parse(JSON.stringify(compStudents))
+      };
+      setHistory([initialSnapshot]);
+      setHistoryIndex(0);
+    }
+  }, []);
+
+  // Track changes into history
+  useEffect(() => {
+    if (isInternalHistoryChangeRef.current) return;
+
+    const currentSnapshot = {
+      pd: JSON.parse(JSON.stringify(projectDetails)),
+      ps: JSON.parse(JSON.stringify(projectStudents)),
+      cd: JSON.parse(JSON.stringify(compDetails)),
+      cs: JSON.parse(JSON.stringify(compStudents))
+    };
+
+    setHistory(prevHistory => {
+      const currentSlice = prevHistory.slice(0, historyIndex + 1);
+      const lastSnap = currentSlice[currentSlice.length - 1];
+      if (lastSnap && JSON.stringify(lastSnap) === JSON.stringify(currentSnapshot)) {
+        return prevHistory;
+      }
+      const updated = [...currentSlice, currentSnapshot];
+      if (updated.length > 30) updated.shift();
+      return updated;
+    });
+
+    setHistoryIndex(prev => Math.min(prev + 1, 29));
+  }, [projectDetails, projectStudents, compDetails, compStudents, historyIndex]);
+
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < history.length - 1;
+
+  const handleUndo = () => {
+    if (canUndo) {
+      isInternalHistoryChangeRef.current = true;
+      const targetSnapshot = history[historyIndex - 1];
+      setHistoryIndex(prev => prev - 1);
+
+      setProjectDetails(targetSnapshot.pd);
+      setProjectStudents(targetSnapshot.ps);
+      setCompDetails(targetSnapshot.cd);
+      setCompStudents(targetSnapshot.cs);
+
+      // Broadcast hard snapshot sync to P2P peer
+      broadcastGlobalState(targetSnapshot.pd, targetSnapshot.ps, targetSnapshot.cd, targetSnapshot.cs, true);
+
+      setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
+    }
+  };
+
+  const handleRedo = () => {
+    if (canRedo) {
+      isInternalHistoryChangeRef.current = true;
+      const targetSnapshot = history[historyIndex + 1];
+      setHistoryIndex(prev => prev + 1);
+
+      setProjectDetails(targetSnapshot.pd);
+      setProjectStudents(targetSnapshot.ps);
+      setCompDetails(targetSnapshot.cd);
+      setCompStudents(targetSnapshot.cs);
+
+      // Broadcast hard snapshot sync to P2P peer
+      broadcastGlobalState(targetSnapshot.pd, targetSnapshot.ps, targetSnapshot.cd, targetSnapshot.cs, true);
+
+      setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
+    }
+  };
+
+  // Keyboard shortcuts listener for Ctrl+Z and Ctrl+Y
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const modifier = isMac ? e.metaKey : e.ctrlKey;
+
+      if (modifier && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      } else if (modifier && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [historyIndex, history, canUndo, canRedo]);
+
+  // -------------------------------------------------------------
   // GLOBAL BACKGROUND WEBRTC P2P SYNC ENGINE
   // -------------------------------------------------------------
   const [roomCode, setRoomCode] = useState('');
@@ -80,7 +184,6 @@ function App() {
 
   const peerRef = useRef(null);
   const connRef = useRef(null);
-  const isIncomingSyncRef = useRef(false);
 
   const generateRoomCode = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -154,21 +257,34 @@ function App() {
 
     conn.on('data', (data) => {
       if (data && data.type === 'GLOBAL_SYNC_STATE') {
-        isIncomingSyncRef.current = true;
+        isInternalHistoryChangeRef.current = true;
         try {
-          if (data.projectDetails && data.projectStudents) {
-            setProjectDetails(prev => ({ ...prev, ...data.projectDetails }));
-            setProjectStudents(prev => mergeStudentData(prev, data.projectStudents, 'ProjectVivaApp', 'all'));
-          }
-          if (data.compDetails && data.compStudents) {
-            setCompDetails(prev => ({ ...prev, ...data.compDetails }));
-            setCompStudents(prev => mergeStudentData(prev, data.compStudents, 'ComprehensiveVivaApp', 'all'));
+          if (data.isHardReset) {
+            // Hard reset or undo/redo sync: overwrite local state directly
+            if (data.projectDetails && data.projectStudents) {
+              setProjectDetails(data.projectDetails);
+              setProjectStudents(data.projectStudents);
+            }
+            if (data.compDetails && data.compStudents) {
+              setCompDetails(data.compDetails);
+              setCompStudents(data.compStudents);
+            }
+          } else {
+            // Normal incremental merge
+            if (data.projectDetails && data.projectStudents) {
+              setProjectDetails(prev => ({ ...prev, ...data.projectDetails }));
+              setProjectStudents(prev => mergeStudentData(prev, data.projectStudents, 'ProjectVivaApp', 'all'));
+            }
+            if (data.compDetails && data.compStudents) {
+              setCompDetails(prev => ({ ...prev, ...data.compDetails }));
+              setCompStudents(prev => mergeStudentData(prev, data.compStudents, 'ComprehensiveVivaApp', 'all'));
+            }
           }
           setStatusMsg(`Background sync update received at ${new Date().toLocaleTimeString()}`);
         } catch (e) {
           console.error('Failed to parse incoming P2P packet', e);
         } finally {
-          setTimeout(() => { isIncomingSyncRef.current = false; }, 100);
+          setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
         }
       }
     });
@@ -184,10 +300,11 @@ function App() {
     });
   };
 
-  const broadcastGlobalState = (pd, ps, cd, cs) => {
-    if (connRef.current && connRef.current.open && !isIncomingSyncRef.current) {
+  const broadcastGlobalState = (pd, ps, cd, cs, isHardReset = false) => {
+    if (connRef.current && connRef.current.open && !isInternalHistoryChangeRef.current) {
       connRef.current.send({
         type: 'GLOBAL_SYNC_STATE',
+        isHardReset,
         projectDetails: pd,
         projectStudents: ps,
         compDetails: cd,
@@ -203,6 +320,30 @@ function App() {
       broadcastGlobalState(projectDetails, projectStudents, compDetails, compStudents);
     }
   }, [projectDetails, projectStudents, compDetails, compStudents, peerStatus]);
+
+  const handleResetDataWrapper = (appSource) => {
+    if (appSource === 'project') {
+      const defaultDetails = { centre: '', date: '', courseCode: '' };
+      const defaultStudents = [
+        { 
+          id: '1', registerNumber: '', name: '', topic: '',
+          structural: 'A+', editing: 'A+', references: 'A+', title: 'A+', supporting: 'A+', results: 'A+', novelty: 'A+',
+          presentationEx1: 'A+', presentationEx2: 'A+', vivaEx1: 'A+', vivaEx2: 'A+' 
+        }
+      ];
+      setProjectDetails(defaultDetails);
+      setProjectStudents(defaultStudents);
+      broadcastGlobalState(defaultDetails, defaultStudents, compDetails, compStudents, true);
+    } else if (appSource === 'comp') {
+      const defaultDetails = { centre: '', date: '', courseCode: 'Viva Voce / BOT4V01' };
+      const defaultGrades = {};
+      for(let i=1; i<=15; i++) defaultGrades[`q${i}`] = 'A+';
+      const defaultStudents = [{ id: '1', registerNumber: '', name: '', ex1: { ...defaultGrades }, ex2: { ...defaultGrades } }];
+      setCompDetails(defaultDetails);
+      setCompStudents(defaultStudents);
+      broadcastGlobalState(projectDetails, projectStudents, defaultDetails, defaultStudents, true);
+    }
+  };
 
   const disconnectPeer = () => {
     if (connRef.current) connRef.current.close();
@@ -220,7 +361,8 @@ function App() {
       <ProjectVivaApp 
         details={projectDetails} setDetails={setProjectDetails}
         students={projectStudents} setStudents={setProjectStudents}
-        onOpenSyncTab={() => handleTabSwitch('sync')}
+        canUndo={canUndo} canRedo={canRedo} onUndo={handleUndo} onRedo={handleRedo}
+        onResetData={() => handleResetDataWrapper('project')}
       />
     );
   }
@@ -229,7 +371,8 @@ function App() {
       <ComprehensiveVivaApp 
         details={compDetails} setDetails={setCompDetails}
         students={compStudents} setStudents={setCompStudents}
-        onOpenSyncTab={() => handleTabSwitch('sync')}
+        canUndo={canUndo} canRedo={canRedo} onUndo={handleUndo} onRedo={handleRedo}
+        onResetData={() => handleResetDataWrapper('comp')}
       />
     );
   }
@@ -268,12 +411,16 @@ function App() {
           <ProjectVivaApp 
             details={projectDetails} setDetails={setProjectDetails}
             students={projectStudents} setStudents={setProjectStudents}
+            canUndo={canUndo} canRedo={canRedo} onUndo={handleUndo} onRedo={handleRedo}
+            onResetData={() => handleResetDataWrapper('project')}
           />
         )}
         {currentAppTab === 'comp' && (
           <ComprehensiveVivaApp 
             details={compDetails} setDetails={setCompDetails}
             students={compStudents} setStudents={setCompStudents}
+            canUndo={canUndo} canRedo={canRedo} onUndo={handleUndo} onRedo={handleRedo}
+            onResetData={() => handleResetDataWrapper('comp')}
           />
         )}
         {currentAppTab === 'sync' && (
