@@ -3,8 +3,21 @@ import Peer from 'peerjs';
 import ProjectVivaApp from './ProjectVivaApp';
 import ComprehensiveVivaApp from './ComprehensiveVivaApp';
 import SyncTab from './components/SyncTab';
-import { mergeStudentData } from './utils/mergeUtils';
 import './index.css';
+
+// Public STUN server configuration for cross-device & laptop-to-laptop WebRTC connectivity
+const PEER_CONFIG = {
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' }
+    ]
+  },
+  debug: 1
+};
 
 function App() {
   const queryParams = new URLSearchParams(window.location.search);
@@ -54,6 +67,36 @@ function App() {
     localStorage.setItem('comp_viva_details', JSON.stringify(compDetails));
     localStorage.setItem('comp_viva_students', JSON.stringify(compStudents));
   }, [compDetails, compStudents]);
+
+  // -------------------------------------------------------------
+  // SAME-DEVICE MULTI-TAB BROADCAST CHANNEL
+  // -------------------------------------------------------------
+  const bcRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof BroadcastChannel !== 'undefined') {
+      const bc = new BroadcastChannel('vivamarks_tab_sync');
+      bcRef.current = bc;
+
+      bc.onmessage = (event) => {
+        if (event.data && event.data.type === 'GLOBAL_SYNC_STATE') {
+          isInternalHistoryChangeRef.current = true;
+          try {
+            if (event.data.projectDetails) setProjectDetails(event.data.projectDetails);
+            if (event.data.projectStudents) setProjectStudents(event.data.projectStudents);
+            if (event.data.compDetails) setCompDetails(event.data.compDetails);
+            if (event.data.compStudents) setCompStudents(event.data.compStudents);
+          } finally {
+            setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
+          }
+        }
+      };
+
+      return () => {
+        bc.close();
+      };
+    }
+  }, []);
 
   // -------------------------------------------------------------
   // UNDO & REDO ENGINE
@@ -115,8 +158,8 @@ function App() {
       setCompDetails(targetSnapshot.cd);
       setCompStudents(targetSnapshot.cs);
 
-      // Broadcast hard snapshot sync to P2P peer
-      broadcastGlobalState(targetSnapshot.pd, targetSnapshot.ps, targetSnapshot.cd, targetSnapshot.cs, true);
+      // Broadcast hard snapshot sync to P2P peer & local tabs
+      broadcastGlobalState(targetSnapshot.pd, targetSnapshot.ps, targetSnapshot.cd, targetSnapshot.cs);
 
       setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
     }
@@ -133,8 +176,8 @@ function App() {
       setCompDetails(targetSnapshot.cd);
       setCompStudents(targetSnapshot.cs);
 
-      // Broadcast hard snapshot sync to P2P peer
-      broadcastGlobalState(targetSnapshot.pd, targetSnapshot.ps, targetSnapshot.cd, targetSnapshot.cs, true);
+      // Broadcast hard snapshot sync to P2P peer & local tabs
+      broadcastGlobalState(targetSnapshot.pd, targetSnapshot.ps, targetSnapshot.cd, targetSnapshot.cs);
 
       setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
     }
@@ -160,7 +203,7 @@ function App() {
   }, [historyIndex, history, canUndo, canRedo]);
 
   // -------------------------------------------------------------
-  // GLOBAL BACKGROUND WEBRTC P2P SYNC ENGINE
+  // GLOBAL BACKGROUND WEBRTC P2P SYNC ENGINE (STUN-enabled)
   // -------------------------------------------------------------
   const [roomCode, setRoomCode] = useState('');
   const [peerStatus, setPeerStatus] = useState('disconnected'); // 'disconnected' | 'connecting' | 'connected' | 'error'
@@ -185,7 +228,7 @@ function App() {
     setStatusMsg('Creating P2P Room...');
 
     const peerId = `vivamarks-global-${code}`;
-    const peer = new Peer(peerId, { debug: 1 });
+    const peer = new Peer(peerId, PEER_CONFIG);
     peerRef.current = peer;
 
     peer.on('open', () => {
@@ -215,7 +258,7 @@ function App() {
     setStatusMsg(`Connecting to Room ${cleanCode}...`);
     setRoomCode(cleanCode);
 
-    const peer = new Peer(null, { debug: 1 });
+    const peer = new Peer(null, PEER_CONFIG);
     peerRef.current = peer;
 
     peer.on('open', () => {
@@ -234,7 +277,7 @@ function App() {
   const setupConnectionHandlers = (conn) => {
     conn.on('open', () => {
       setPeerStatus('connected');
-      setStatusMsg('Connected! Background sync is live across all tabs.');
+      setStatusMsg('Connected! Background sync is live across all devices.');
       // Broadcast initial full state
       broadcastGlobalState(projectDetails, projectStudents, compDetails, compStudents);
     });
@@ -269,26 +312,33 @@ function App() {
     });
   };
 
-  const broadcastGlobalState = (pd, ps, cd, cs, isHardReset = false) => {
-    if (connRef.current && connRef.current.open && !isInternalHistoryChangeRef.current) {
-      connRef.current.send({
-        type: 'GLOBAL_SYNC_STATE',
-        isHardReset,
-        projectDetails: pd,
-        projectStudents: ps,
-        compDetails: cd,
-        compStudents: cs,
-        timestamp: Date.now()
-      });
+  const broadcastGlobalState = (pd, ps, cd, cs) => {
+    if (isInternalHistoryChangeRef.current) return;
+
+    const payload = {
+      type: 'GLOBAL_SYNC_STATE',
+      projectDetails: pd,
+      projectStudents: ps,
+      compDetails: cd,
+      compStudents: cs,
+      timestamp: Date.now()
+    };
+
+    // 1. Broadcast to same-device local tabs (0ms latency)
+    if (bcRef.current) {
+      bcRef.current.postMessage(payload);
+    }
+
+    // 2. Broadcast to P2P network peer
+    if (connRef.current && connRef.current.open) {
+      connRef.current.send(payload);
     }
   };
 
   // Broadcast state changes whenever local states change while connected
   useEffect(() => {
-    if (peerStatus === 'connected') {
-      broadcastGlobalState(projectDetails, projectStudents, compDetails, compStudents);
-    }
-  }, [projectDetails, projectStudents, compDetails, compStudents, peerStatus]);
+    broadcastGlobalState(projectDetails, projectStudents, compDetails, compStudents);
+  }, [projectDetails, projectStudents, compDetails, compStudents]);
 
   const handleResetDataWrapper = (appSource) => {
     if (appSource === 'project') {
@@ -296,13 +346,13 @@ function App() {
       const defaultStudents = [];
       setProjectDetails(defaultDetails);
       setProjectStudents(defaultStudents);
-      broadcastGlobalState(defaultDetails, defaultStudents, compDetails, compStudents, true);
+      broadcastGlobalState(defaultDetails, defaultStudents, compDetails, compStudents);
     } else if (appSource === 'comp') {
       const defaultDetails = { centre: '', date: '', courseCode: 'Viva Voce / BOT4V01' };
       const defaultStudents = [];
       setCompDetails(defaultDetails);
       setCompStudents(defaultStudents);
-      broadcastGlobalState(projectDetails, projectStudents, defaultDetails, defaultStudents, true);
+      broadcastGlobalState(projectDetails, projectStudents, defaultDetails, defaultStudents);
     }
   };
 
