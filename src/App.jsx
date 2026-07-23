@@ -5,11 +5,17 @@ import ComprehensiveVivaApp from './ComprehensiveVivaApp';
 import SyncTab from './components/SyncTab';
 import './index.css';
 
-// PeerJS signaling & WebRTC configuration with STUN & TURN cloud relays
+// PeerJS signaling & WebRTC configuration with static IP & domain STUN/TURN relays
 const PEER_OPTIONS = {
   debug: 2,
   config: {
     iceServers: [
+      // Direct IP Google STUN servers (Bypasses DNS lookup blocking / Antivirus DNS shields!)
+      { urls: 'stun:142.250.159.127:19302' },
+      { urls: 'stun:74.125.200.127:19302' },
+      { urls: 'stun:173.194.202.127:19302' },
+      { urls: 'stun:74.125.250.129:19302' },
+      // Domain STUN & TURN fallback
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
