@@ -491,14 +491,18 @@ function App() {
                 if (conn.open) conn.send(data);
               });
             }
+            
+            setPeerStatus('connected');
+            setSyncMode(prev => (prev === 'p2p' ? 'hybrid' : 'https'));
           } finally {
             setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
           }
+        } else if (!isHostRef.current) {
+          // If we are a guest and we fetched the cloud state (even if no edits happened yet),
+          // we are successfully connected to the cloud room.
+          setPeerStatus(prev => (prev === 'disconnected' || prev === 'connecting' ? 'connected' : prev));
+          setSyncMode(prev => (prev === 'p2p' ? 'p2p' : 'https'));
         }
-
-        // Always mark status as connected when room data payload is retrieved!
-        setPeerStatus(prev => (prev === 'connected' ? prev : 'connected'));
-        setSyncMode('https');
       }
     }, 1200);
   };
@@ -729,8 +733,8 @@ function App() {
 
     conn.on('close', () => {
       addP2pLog(`Guest: Connection closed by host.`);
-      setPeerStatus('disconnected');
-      setStatusMsg('Disconnected from P2P Room.');
+      disconnectPeer(); // Full teardown to kill zombie cloud polling
+      setStatusMsg('Disconnected. Host ended the session.');
     });
 
     conn.on('error', (err) => {
