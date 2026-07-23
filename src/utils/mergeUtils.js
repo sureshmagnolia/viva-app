@@ -18,89 +18,86 @@ export const normalizeRegNo = (regNo) => {
  * @returns {Array} New merged students array
  */
 export const mergeStudentData = (currentStudents = [], incomingStudents = [], appType, mergeRole = 'all') => {
-  if (!Array.isArray(incomingStudents) || incomingStudents.length === 0) {
+  if (!Array.isArray(incomingStudents)) {
     return currentStudents;
   }
 
-  // Map existing students by normalized registerNumber and ID for fast lookup
-  const mergedMap = new Map();
-  const currentList = [...currentStudents];
+  // Create lookups by ID and by Register Number for existing students
+  const idMap = new Map();
+  const regMap = new Map();
+  const mergedList = currentStudents.map(s => ({ ...s }));
 
-  currentList.forEach((student, index) => {
-    const key = normalizeRegNo(student.registerNumber) || `id_${student.id || index}`;
-    mergedMap.set(key, { ...student });
+  mergedList.forEach(s => {
+    if (s.id) idMap.set(String(s.id), s);
+    const reg = normalizeRegNo(s.registerNumber);
+    if (reg) regMap.set(reg, s);
   });
 
-  incomingStudents.forEach((incStudent, index) => {
-    const key = normalizeRegNo(incStudent.registerNumber) || `id_${incStudent.id || index}`;
-    const existing = mergedMap.get(key);
+  incomingStudents.forEach(incStudent => {
+    // 1. Primary match: by immutable student ID
+    let target = incStudent.id ? idMap.get(String(incStudent.id)) : null;
 
-    if (!existing) {
-      // New student added on partner device, append
-      mergedMap.set(key, { ...incStudent });
-      return;
+    // 2. Secondary match: by Register Number if ID didn't match and Reg No is non-empty
+    const incReg = normalizeRegNo(incStudent.registerNumber);
+    if (!target && incReg) {
+      target = regMap.get(incReg);
     }
 
-    // Merge onto existing student record based on app type and merge role
-    if (appType === 'ProjectVivaApp') {
-      const updated = { ...existing };
-      
-      // Copy student basic details if blank in existing
-      if (!updated.registerNumber && incStudent.registerNumber) updated.registerNumber = incStudent.registerNumber;
-      if (!updated.name && incStudent.name) updated.name = incStudent.name;
-      if (!updated.topic && incStudent.topic) updated.topic = incStudent.topic;
+    if (!target) {
+      // Truly a new student card added on partner device, append to list
+      const newStudent = { ...incStudent };
+      mergedList.push(newStudent);
+      if (newStudent.id) idMap.set(String(newStudent.id), newStudent);
+      if (incReg) regMap.set(incReg, newStudent);
+    } else {
+      // In-place update of existing student record
+      if (incStudent.registerNumber !== undefined) target.registerNumber = (incStudent.registerNumber || '').toUpperCase();
+      if (incStudent.name !== undefined) target.name = incStudent.name;
 
-      // Copy project grades if mergeRole is 'all' or existing has default/blank
-      if (mergeRole === 'all') {
-        ['structural', 'editing', 'references', 'title', 'supporting', 'results', 'novelty'].forEach(field => {
-          if (incStudent[field]) updated[field] = incStudent[field];
-        });
+      if (appType === 'ProjectVivaApp') {
+        if (incStudent.topic !== undefined) target.topic = incStudent.topic;
+
+        if (mergeRole === 'all') {
+          ['structural', 'editing', 'references', 'title', 'supporting', 'results', 'novelty'].forEach(field => {
+            if (incStudent[field] !== undefined) target[field] = incStudent[field];
+          });
+        }
+
+        if (mergeRole === 'ex1' || mergeRole === 'all') {
+          if (incStudent.presentationEx1 !== undefined) target.presentationEx1 = incStudent.presentationEx1;
+          if (incStudent.vivaEx1 !== undefined) target.vivaEx1 = incStudent.vivaEx1;
+        }
+
+        if (mergeRole === 'ex2' || mergeRole === 'all') {
+          if (incStudent.presentationEx2 !== undefined) target.presentationEx2 = incStudent.presentationEx2;
+          if (incStudent.vivaEx2 !== undefined) target.vivaEx2 = incStudent.vivaEx2;
+        }
+      } else if (appType === 'ComprehensiveVivaApp') {
+        if ((mergeRole === 'ex1' || mergeRole === 'all') && incStudent.ex1) {
+          target.ex1 = { ...(target.ex1 || {}), ...incStudent.ex1 };
+        }
+        if ((mergeRole === 'ex2' || mergeRole === 'all') && incStudent.ex2) {
+          target.ex2 = { ...(target.ex2 || {}), ...incStudent.ex2 };
+        }
       }
 
-      // Merge Examiner 1 fields
-      if (mergeRole === 'ex1' || mergeRole === 'all') {
-        if (incStudent.presentationEx1) updated.presentationEx1 = incStudent.presentationEx1;
-        if (incStudent.vivaEx1) updated.vivaEx1 = incStudent.vivaEx1;
-      }
-
-      // Merge Examiner 2 fields
-      if (mergeRole === 'ex2' || mergeRole === 'all') {
-        if (incStudent.presentationEx2) updated.presentationEx2 = incStudent.presentationEx2;
-        if (incStudent.vivaEx2) updated.vivaEx2 = incStudent.vivaEx2;
-      }
-
-      mergedMap.set(key, updated);
-    } else if (appType === 'ComprehensiveVivaApp') {
-      const updated = { ...existing };
-
-      // Copy student basic details if blank in existing
-      if (!updated.registerNumber && incStudent.registerNumber) updated.registerNumber = incStudent.registerNumber;
-      if (!updated.name && incStudent.name) updated.name = incStudent.name;
-
-      // Merge Examiner 1
-      if ((mergeRole === 'ex1' || mergeRole === 'all') && incStudent.ex1) {
-        updated.ex1 = { ...(updated.ex1 || {}), ...incStudent.ex1 };
-      }
-
-      // Merge Examiner 2
-      if ((mergeRole === 'ex2' || mergeRole === 'all') && incStudent.ex2) {
-        updated.ex2 = { ...(updated.ex2 || {}), ...incStudent.ex2 };
-      }
-
-      mergedMap.set(key, updated);
+      // Keep regMap updated if register number changed
+      const updatedReg = normalizeRegNo(target.registerNumber);
+      if (updatedReg) regMap.set(updatedReg, target);
     }
   });
 
-  return Array.from(mergedMap.values());
+  return mergedList;
 };
 
 /**
- * Creates a lightweight JSON payload suitable for QR codes or Bluetooth/P2P data transfer.
+ * Creates a lightweight JSON payload suitable for data transfer.
  */
 export const createCompressedPayload = (details, students, appType, examinerRole) => {
   const miniStudents = students.map(s => {
     const base = {
-      r: s.registerNumber || '',
+      id: s.id,
+      r: (s.registerNumber || '').toUpperCase(),
       n: s.name || ''
     };
 
@@ -132,7 +129,7 @@ export const createCompressedPayload = (details, students, appType, examinerRole
   });
 
   return {
-    v: 1, // payload version
+    v: 1,
     app: appType,
     role: examinerRole,
     ts: Date.now(),
@@ -154,8 +151,8 @@ export const decompressAndMergePayload = (payload, currentStudents, currentDetai
   const expandedStudents = payload.s.map((s, idx) => {
     if (appType === 'ProjectVivaApp') {
       const res = {
-        id: `inc_${idx}_${Date.now()}`,
-        registerNumber: s.r || '',
+        id: s.id || `inc_${idx}_${Date.now()}`,
+        registerNumber: (s.r || '').toUpperCase(),
         name: s.n || '',
         topic: s.t || ''
       };
@@ -176,8 +173,8 @@ export const decompressAndMergePayload = (payload, currentStudents, currentDetai
       return res;
     } else {
       const res = {
-        id: `inc_${idx}_${Date.now()}`,
-        registerNumber: s.r || '',
+        id: s.id || `inc_${idx}_${Date.now()}`,
+        registerNumber: (s.r || '').toUpperCase(),
         name: s.n || ''
       };
       if (s.e1) res.ex1 = s.e1;
