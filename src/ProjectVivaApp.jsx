@@ -109,10 +109,10 @@ function ProjectVivaApp({
   };
 
   const tabs = [
-    { id: 'students', label: '1. Students Data' },
-    { id: 'project', label: '2. Project Grades' },
-    { id: 'viva', label: '3. Presentation & Viva' },
-    { id: 'marklist', label: '4. Final Marklist' }
+    { id: 'students', label: '📋 1. Students Data', color: '#38bdf8', activeBg: 'rgba(2, 132, 199, 0.25)' },
+    { id: 'project', label: '📊 2. Project Grades', color: '#c084fc', activeBg: 'rgba(168, 85, 247, 0.25)' },
+    { id: 'viva', label: '🎤 3. Presentation & Viva', color: '#60a5fa', activeBg: 'rgba(59, 130, 246, 0.25)' },
+    { id: 'marklist', label: '📄 4. Final Marklist', color: '#34d399', activeBg: 'rgba(16, 185, 129, 0.25)' }
   ];
 
   if (printMode === 'marklist') {
@@ -197,16 +197,34 @@ function ProjectVivaApp({
         </section>
 
         <section className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
-          <div className="tabs-header">
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                className={`tab-btn ${currentTab === tab.id ? 'active' : ''}`}
-                onClick={() => setCurrentTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="tabs-header" style={{ display: 'flex', background: 'rgba(15, 23, 42, 0.95)', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', overflowX: 'auto', gap: '6px', padding: '8px 12px 0 12px' }}>
+            {tabs.map(tab => {
+              const isActive = currentTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setCurrentTab(tab.id)}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '8px 8px 0 0',
+                    border: '1px solid transparent',
+                    borderBottom: 'none',
+                    background: isActive ? tab.activeBg : 'rgba(255,255,255,0.03)',
+                    borderColor: isActive ? tab.color : 'rgba(255,255,255,0.08)',
+                    color: isActive ? tab.color : '#94a3b8',
+                    fontWeight: isActive ? 'bold' : '600',
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.2s ease',
+                    boxShadow: isActive ? `0 -2px 10px ${tab.color}33` : 'none'
+                  }}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
 
           <div className="tab-content" style={{ padding: '1.5rem' }}>

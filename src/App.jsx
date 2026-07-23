@@ -1111,32 +1111,79 @@ function App() {
         </div>
       </header>
 
-      <nav className="master-tabs">
+      <nav className="master-tabs" style={{ display: 'flex', gap: '8px', padding: '10px 16px 0 16px', background: 'rgba(15, 23, 42, 0.95)', borderBottom: '1px solid rgba(255,255,255,0.1)', overflowX: 'auto' }}>
         <button 
-          className={`master-tab ${currentAppTab === 'project' ? 'active' : ''}`}
+          type="button"
+          className={`master-tab ${currentAppTab === 'project' ? 'active-project' : ''}`}
           onClick={() => handleTabSwitch('project')}
+          style={{
+            padding: '12px 20px',
+            borderRadius: '10px 10px 0 0',
+            fontWeight: 'bold',
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            border: '1px solid transparent',
+            borderBottom: 'none',
+            transition: 'all 0.2s ease',
+            background: currentAppTab === 'project' ? 'linear-gradient(180deg, rgba(2, 132, 199, 0.3), rgba(15, 23, 42, 0.95))' : 'rgba(255,255,255,0.03)',
+            borderColor: currentAppTab === 'project' ? '#38bdf8' : 'rgba(255,255,255,0.08)',
+            color: currentAppTab === 'project' ? '#38bdf8' : '#94a3b8',
+            boxShadow: currentAppTab === 'project' ? '0 -2px 12px rgba(56, 189, 248, 0.2)' : 'none'
+          }}
         >
-          1. Project Viva & Dissertation
+          📘 1. Project Viva & Dissertation
         </button>
+
         <button 
-          className={`master-tab ${currentAppTab === 'comp' ? 'active' : ''}`}
+          type="button"
+          className={`master-tab ${currentAppTab === 'comp' ? 'active-comp' : ''}`}
           onClick={() => handleTabSwitch('comp')}
+          style={{
+            padding: '12px 20px',
+            borderRadius: '10px 10px 0 0',
+            fontWeight: 'bold',
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            border: '1px solid transparent',
+            borderBottom: 'none',
+            transition: 'all 0.2s ease',
+            background: currentAppTab === 'comp' ? 'linear-gradient(180deg, rgba(16, 185, 129, 0.3), rgba(15, 23, 42, 0.95))' : 'rgba(255,255,255,0.03)',
+            borderColor: currentAppTab === 'comp' ? '#34d399' : 'rgba(255,255,255,0.08)',
+            color: currentAppTab === 'comp' ? '#34d399' : '#94a3b8',
+            boxShadow: currentAppTab === 'comp' ? '0 -2px 12px rgba(52, 211, 153, 0.2)' : 'none'
+          }}
         >
-          2. Comprehensive Viva Marks Consolidator
+          📗 2. Comprehensive Viva Marks Consolidator
         </button>
+
         <button 
-          className={`master-tab ${currentAppTab === 'sync' ? 'active' : ''}`}
+          type="button"
+          className={`master-tab ${currentAppTab === 'sync' ? 'active-sync' : ''}`}
           onClick={() => handleTabSwitch('sync')}
-          style={{ position: 'relative' }}
+          style={{
+            padding: '12px 20px',
+            borderRadius: '10px 10px 0 0',
+            fontWeight: 'bold',
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            border: '1px solid transparent',
+            borderBottom: 'none',
+            transition: 'all 0.2s ease',
+            background: currentAppTab === 'sync' ? 'linear-gradient(180deg, rgba(168, 85, 247, 0.3), rgba(15, 23, 42, 0.95))' : 'rgba(255,255,255,0.03)',
+            borderColor: currentAppTab === 'sync' ? '#c084fc' : 'rgba(255,255,255,0.08)',
+            color: currentAppTab === 'sync' ? '#c084fc' : '#94a3b8',
+            boxShadow: currentAppTab === 'sync' ? '0 -2px 12px rgba(192, 132, 252, 0.2)' : 'none',
+            position: 'relative'
+          }}
         >
-          3. Live Multi-Device Sync 📡
+          📡 3. Live Multi-Device Sync
           {peerStatus === 'connected' && (
-            <span style={{ marginLeft: '6px', background: syncMode === 'p2p' ? '#22c55e' : '#eab308', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>
+            <span style={{ marginLeft: '8px', background: syncMode === 'p2p' ? '#15803d' : '#d97706', color: '#fff', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
               {syncMode === 'p2p' ? `Room ${roomCode}` : `Cloud ${roomCode}`}
             </span>
           )}
           {peerStatus === 'disconnected' && connectionLostReason && (
-            <span style={{ marginLeft: '6px', background: '#d97706', color: '#fff', fontSize: '0.7rem', padding: '2px 6px', borderRadius: '10px' }}>
+            <span style={{ marginLeft: '8px', background: '#d97706', color: '#fff', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
               Offline (Saved)
             </span>
           )}
