@@ -243,24 +243,13 @@ function App() {
       if (data && data.type === 'GLOBAL_SYNC_STATE') {
         isInternalHistoryChangeRef.current = true;
         try {
-          if (data.isHardReset) {
-            // Hard reset or undo/redo sync: overwrite local state directly
-            if (data.projectDetails) setProjectDetails(data.projectDetails);
-            if (data.projectStudents) setProjectStudents(data.projectStudents);
-            if (data.compDetails) setCompDetails(data.compDetails);
-            if (data.compStudents) setCompStudents(data.compStudents);
-          } else {
-            // Normal incremental merge
-            if (data.projectDetails && data.projectStudents) {
-              setProjectDetails(prev => ({ ...prev, ...data.projectDetails }));
-              setProjectStudents(prev => mergeStudentData(prev, data.projectStudents, 'ProjectVivaApp', 'all'));
-            }
-            if (data.compDetails && data.compStudents) {
-              setCompDetails(prev => ({ ...prev, ...data.compDetails }));
-              setCompStudents(prev => mergeStudentData(prev, data.compStudents, 'ComprehensiveVivaApp', 'all'));
-            }
-          }
-          setStatusMsg(`Background sync update received at ${new Date().toLocaleTimeString()}`);
+          // Direct 1-to-1 state mirroring across connected devices
+          if (data.projectDetails) setProjectDetails(data.projectDetails);
+          if (data.projectStudents) setProjectStudents(data.projectStudents);
+          if (data.compDetails) setCompDetails(data.compDetails);
+          if (data.compStudents) setCompStudents(data.compStudents);
+
+          setStatusMsg(`Synced update received at ${new Date().toLocaleTimeString()}`);
         } catch (e) {
           console.error('Failed to parse incoming P2P packet', e);
         } finally {
