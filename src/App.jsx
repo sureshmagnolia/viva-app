@@ -7,18 +7,14 @@ import './index.css';
 
 // PeerJS signaling & WebRTC configuration with public Google STUN servers
 const PEER_OPTIONS = {
-  host: '0.peerjs.com',
-  port: 443,
-  path: '/',
-  secure: true,
+  debug: 1,
   config: {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' }
     ]
-  },
-  debug: 1
+  }
 };
 
 function App() {
@@ -344,7 +340,7 @@ function App() {
 
     peer.on('open', () => {
       const hostPeerId = `viva-${cleanCode}`;
-      const conn = peer.connect(hostPeerId, { reliable: true });
+      const conn = peer.connect(hostPeerId);
       guestConnectionRef.current = conn;
       setupGuestConnection(conn);
     });
