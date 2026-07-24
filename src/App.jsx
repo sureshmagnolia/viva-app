@@ -812,6 +812,18 @@ function App() {
             addP2pLog(`HTTPS Cloud: Synced state update received for Room ${targetCode}`);
 
             if (isHostRef.current) {
+              if (data.senderRole && data.senderRole !== 'host') {
+                setConnectedPeers(prev => ({
+                  ...prev,
+                  [data.senderName || 'Guest Device']: {
+                    role: data.senderRole,
+                    name: data.senderName || 'Guest Partner',
+                    activeTab: data.senderActiveTab || 'all',
+                    lastSeen: Date.now()
+                  }
+                }));
+                setStatusMsg(`Connected! Synced with ${data.senderName || 'Guest Partner'} in Room ${targetCode}`);
+              }
               hostConnectionsRef.current.forEach(conn => {
                 if (conn.open) conn.send(data);
               });
