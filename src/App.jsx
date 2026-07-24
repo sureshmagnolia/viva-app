@@ -609,11 +609,15 @@ function App() {
       return;
     }
 
-    if (data.projectDetails) setProjectDetails(data.projectDetails);
+    if (data.projectDetails) {
+      setProjectDetails(prev => JSON.stringify(prev) === JSON.stringify(data.projectDetails) ? prev : data.projectDetails);
+    }
     if (data.projectStudents && Array.isArray(data.projectStudents)) {
       setProjectStudents(prev => mergeStudentData(prev, data.projectStudents, 'ProjectVivaApp', incomingRole, { isReset: data.isReset, syncDeletions: data.syncDeletions }));
     }
-    if (data.compDetails) setCompDetails(data.compDetails);
+    if (data.compDetails) {
+      setCompDetails(prev => JSON.stringify(prev) === JSON.stringify(data.compDetails) ? prev : data.compDetails);
+    }
     if (data.compStudents && Array.isArray(data.compStudents)) {
       setCompStudents(prev => mergeStudentData(prev, data.compStudents, 'ComprehensiveVivaApp', incomingRole, { isReset: data.isReset, syncDeletions: data.syncDeletions }));
     }

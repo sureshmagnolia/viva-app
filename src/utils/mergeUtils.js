@@ -99,7 +99,18 @@ export const mergeStudentData = (currentStudents = [], incomingStudents = [], ap
   });
 
   if (options && options.syncDeletions && incomingIdSet.size > 0) {
-    return mergedList.filter(s => !s.id || incomingIdSet.has(String(s.id)));
+    const filteredList = mergedList.filter(s => !s.id || incomingIdSet.has(String(s.id)));
+    if (JSON.stringify(currentStudents) === JSON.stringify(filteredList)) {
+      return currentStudents;
+    }
+    return filteredList;
+  }
+
+  // CRITICAL FIX: Prevent infinite React useEffect sync loops
+  // If the merged list is identical to the current list, return the exact same reference
+  // so React bails out of the state update and doesn't trigger broadcastGlobalState.
+  if (JSON.stringify(currentStudents) === JSON.stringify(mergedList)) {
+    return currentStudents;
   }
 
   return mergedList;
