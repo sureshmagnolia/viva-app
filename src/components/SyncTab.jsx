@@ -254,6 +254,14 @@ function SyncTab({
                   onChange={(e) => setJoinInput(e.target.value.toUpperCase())}
                   style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.4)', color: '#fff', textAlign: 'center', letterSpacing: '3px', fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '0.75rem' }}
                 />
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={() => joinPeerRoom(joinInput)} 
+                  disabled={!joinInput.trim()}
+                  style={{ width: '100%', padding: '10px', fontSize: '0.95rem', fontWeight: 600 }}
+                >
+                  Connect to Room
+                </button>
               </div>
             </div>
           )}
