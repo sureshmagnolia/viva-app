@@ -618,34 +618,6 @@ function App() {
     let published = false;
     let pointerKey = b64Payload;
 
-    // 0. Cloud Storage Offloading for large payloads (pastes.dev or bytebin fallback)
-    if (b64Payload.length > 1000) {
-      try {
-        const pRes = await fetch('https://api.pastes.dev/post', { method: 'POST', body: payloadStr });
-        if (pRes.ok) {
-          const pData = await pRes.json();
-          pointerKey = 'pastes_' + pData.key;
-          addP2pLog(`HTTPS Cloud: Offloaded large encrypted payload to pastes.dev`);
-        } else throw new Error();
-      } catch (err) {
-        try {
-          const pRes2 = await fetch('https://bytebin.lucko.me/post', { 
-            method: 'POST', 
-            body: payloadStr
-          });
-          if (pRes2.ok) {
-            const pData2 = await pRes2.json();
-            pointerKey = 'bytebin_' + pData2.key;
-            addP2pLog(`HTTPS Cloud: Offloaded large encrypted payload to bytebin`);
-          } else {
-            throw new Error('bytebin error');
-          }
-        } catch (err2) {
-          addP2pLog(`HTTPS Cloud: All pastebins failed. Trying raw Base64...`);
-        }
-      }
-    }
-
     // Provider 1: ntfy.sh (Raw Body -> No CORS Preflight!)
     try {
       const res1 = await fetch(`https://ntfy.sh/viva_room_${targetCode}`, {
@@ -720,15 +692,7 @@ function App() {
       if (fetchedPointerKey && fetchedPointerKey !== lastPasteKeyRef.current) {
         lastPasteKeyRef.current = fetchedPointerKey;
         try {
-          if (fetchedPointerKey.startsWith('pastes_')) {
-            const pRes = await fetch(`https://api.pastes.dev/${fetchedPointerKey.split('_')[1]}`);
-            if (pRes.ok) data = await pRes.json();
-          } else if (fetchedPointerKey.startsWith('bytebin_')) {
-            const pRes = await fetch(`https://bytebin.lucko.me/${fetchedPointerKey.split('_')[1]}`);
-            if (pRes.ok) data = await pRes.json();
-          } else {
-            data = JSON.parse(fromBase64Url(fetchedPointerKey));
-          }
+          data = JSON.parse(fromBase64Url(fetchedPointerKey));
         } catch (_parseErr) {}
       }
 
