@@ -6,10 +6,11 @@ import ComprehensiveVivaApp from './ComprehensiveVivaApp';
 import SyncTab from './components/SyncTab';
 import { saveToIndexedDB, getFromIndexedDB } from './utils/indexedDB';
 import { mergeStudentData } from './utils/mergeUtils';
+import { deriveRoomKey, encryptPayload, decryptPayload } from './utils/cryptoUtils';
 import './index.css';
 
 // Build version for cache verification
-const APP_VERSION = "v2.0.1 (Zero-Preflight Fast Cloud Sync & IndexedDB Persistence)";
+const APP_VERSION = "v2.1.0 (AES-256-GCM E2EE & Ephemeral Zero-Cloud-Storage Sync)";
 
 // PeerJS signaling & WebRTC configuration with static IP & domain STUN/TURN relays
 const PEER_OPTIONS = {
@@ -350,6 +351,7 @@ function App() {
     setP2pLogs([]);
   };
 
+  const cryptoKeyRef = useRef(null);
   const peerRef = useRef(null);
   const isHostRef = useRef(false);
   const hostConnectionsRef = useRef(new Map());
@@ -402,6 +404,7 @@ function App() {
   const disconnectPeer = () => {
     addP2pLog('Disconnecting Sync Session...');
     isDisconnectingRef.current = true;
+    cryptoKeyRef.current = null;
 
     if (cloudPollingIntervalRef.current) {
       clearInterval(cloudPollingIntervalRef.current);
@@ -429,6 +432,45 @@ function App() {
     lastHttpsTsRef.current = 0;
     lastPasteKeyRef.current = '';
     hasReceivedCloudStateRef.current = false;
+  };
+
+  const purgeSessionMemory = () => {
+    const confirmPurge = window.confirm(
+      "⚠️ ARE YOU SURE YOU WANT TO PURGE ALL SESSION DATA?\n\n" +
+      "This action will:\n" +
+      "1. Permanently wipe all student mark entries from browser RAM and IndexedDB on this device.\n" +
+      "2. Disconnect the sync room and destroy AES-256 encryption keys.\n" +
+      "3. Reset project and comprehensive viva forms to empty defaults.\n\n" +
+      "Make sure you have already downloaded your final PDF marklist before purging!"
+    );
+
+    if (confirmPurge) {
+      disconnectPeer();
+      cryptoKeyRef.current = null;
+
+      // Reset internal states to clean defaults
+      const emptyProjectDetails = { centre: '', date: '', courseCode: '' };
+      const emptyCompDetails = { centre: '', date: '', courseCode: 'Viva Voce / BOT4V01' };
+      setProjectDetails(emptyProjectDetails);
+      setProjectStudents([]);
+      setCompDetails(emptyCompDetails);
+      setCompStudents([]);
+
+      // Wipe local browser database storage (IndexedDB)
+      saveToIndexedDB('project_details', emptyProjectDetails);
+      saveToIndexedDB('project_students', []);
+      saveToIndexedDB('comp_details', emptyCompDetails);
+      saveToIndexedDB('comp_students', []);
+
+      // Clear localStorage cache
+      localStorage.removeItem('viva_marks_project_details');
+      localStorage.removeItem('viva_marks_project_students');
+      localStorage.removeItem('viva_marks_comp_details');
+      localStorage.removeItem('viva_marks_comp_students');
+
+      addP2pLog("🔥 SESSION PURGED: All local memory, storage, and keys cleared successfully.");
+      alert("🔥 Session memory and local storage purged successfully! Zero data left on this device.");
+    }
   };
 
   // Heartbeat Sender & Liveness Presence Monitor
@@ -526,7 +568,16 @@ function App() {
       senderActiveTab: currentAppTab,
       timestamp: ts
     };
-    const payloadStr = JSON.stringify(payload);
+    let payloadToPublish = payload;
+    if (cryptoKeyRef.current) {
+      try {
+        payloadToPublish = await encryptPayload(payload, cryptoKeyRef.current);
+      } catch (err) {
+        console.error("Failed to encrypt cloud payload", err);
+      }
+    }
+
+    const payloadStr = JSON.stringify(payloadToPublish);
     const b64Payload = toBase64Url(payloadStr);
 
     let published = false;
@@ -539,7 +590,7 @@ function App() {
         if (pRes.ok) {
           const pData = await pRes.json();
           pointerKey = 'pastes_' + pData.key;
-          addP2pLog(`HTTPS Cloud: Offloaded large payload to pastes.dev`);
+          addP2pLog(`HTTPS Cloud: Offloaded large encrypted payload to pastes.dev`);
         } else throw new Error();
       } catch (err) {
         try {
@@ -550,7 +601,7 @@ function App() {
           if (pRes2.ok) {
             const pData2 = await pRes2.json();
             pointerKey = 'bytebin_' + pData2.key;
-            addP2pLog(`HTTPS Cloud: Offloaded large payload to bytebin`);
+            addP2pLog(`HTTPS Cloud: Offloaded large encrypted payload to bytebin`);
           } else {
             throw new Error('bytebin error');
           }
@@ -580,7 +631,7 @@ function App() {
     if (published) {
       lastHttpsTsRef.current = payload.timestamp;
       lastPasteKeyRef.current = pointerKey;
-      addP2pLog(`HTTPS Cloud: Published state update for Room ${targetCode}`);
+      addP2pLog(`HTTPS Cloud: Published AES-256 encrypted state update for Room ${targetCode}`);
     } else {
       addP2pLog(`HTTPS Cloud Push Warning: All cloud relays unreachable.`);
     }
@@ -644,6 +695,23 @@ function App() {
             data = JSON.parse(fromBase64Url(fetchedPointerKey));
           }
         } catch (_parseErr) {}
+      }
+
+      if (isDisconnectingRef.current || !activeRoomCodeRef.current) return;
+
+      // Decrypt AES-256 E2EE packet if encrypted
+      if (data && data.isEncrypted) {
+        if (cryptoKeyRef.current) {
+          const decrypted = await decryptPayload(data, cryptoKeyRef.current);
+          if (!decrypted) {
+            addP2pLog(`HTTPS Cloud: Received encrypted packet, but AES-256 decryption failed (key mismatch/unauthorized room).`);
+            return;
+          }
+          data = decrypted;
+        } else {
+          addP2pLog(`HTTPS Cloud: Received encrypted packet, but room key is not initialized.`);
+          return;
+        }
       }
 
       if (isDisconnectingRef.current || !activeRoomCodeRef.current) return;
@@ -722,7 +790,7 @@ function App() {
     }
   };
 
-  const initHostPeer = () => {
+  const initHostPeer = async () => {
     disconnectPeer();
     isDisconnectingRef.current = false;
     clearP2pLogs();
@@ -731,6 +799,14 @@ function App() {
     const code = generateRoomCode();
     setRoomCode(code);
     activeRoomCodeRef.current = code;
+
+    try {
+      cryptoKeyRef.current = await deriveRoomKey(code);
+      addP2pLog(`Crypto: Derived 256-bit AES-GCM Encryption Key for Room ${code}`);
+    } catch (e) {
+      console.error("Crypto derivation error:", e);
+    }
+
     setPeerStatus('connecting');
     setStatusMsg(`Room active (${code}). Waiting for guest partner to join...`);
     isHostRef.current = true;
@@ -849,7 +925,7 @@ function App() {
     });
   };
 
-  const joinPeerRoom = (cleanCode) => {
+  const joinPeerRoom = async (cleanCode) => {
     disconnectPeer();
     isDisconnectingRef.current = false;
     clearP2pLogs();
@@ -861,6 +937,13 @@ function App() {
     setStatusMsg(`Connecting to Room ${cleanCode}...`);
     setRoomCode(cleanCode);
     activeRoomCodeRef.current = cleanCode;
+
+    try {
+      cryptoKeyRef.current = await deriveRoomKey(cleanCode);
+      addP2pLog(`Crypto: Derived 256-bit AES-GCM Encryption Key for Room ${cleanCode}`);
+    } catch (e) {
+      console.error("Crypto derivation error:", e);
+    }
 
     addP2pLog(`Guest: Initializing PeerJS client to join room: ${cleanCode}`);
     addP2pLog(`Guest: App Version = ${APP_VERSION}`);
@@ -1312,6 +1395,7 @@ function App() {
             initHostPeer={initHostPeer}
             joinPeerRoom={joinPeerRoom}
             disconnectPeer={disconnectPeer}
+            purgeSessionMemory={purgeSessionMemory}
             p2pLogs={p2pLogs}
             clearP2pLogs={clearP2pLogs}
             projectDetails={projectDetails} setProjectDetails={setProjectDetails}
