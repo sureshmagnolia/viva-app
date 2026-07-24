@@ -493,17 +493,17 @@ function App() {
           guestConnectionRef.current.send(payload);
         }
       }
-    }, 3500);
+    }, 2000);
 
     const livenessCheckInterval = setInterval(() => {
       const now = Date.now();
 
-      // Prune inactive roster entries (>8s)
+      // Prune inactive roster entries (>4.5s)
       setConnectedPeers(prev => {
         let updated = false;
         const next = { ...prev };
         Object.entries(next).forEach(([key, peer]) => {
-          if (now - (peer.lastSeen || 0) > 8000) {
+          if (now - (peer.lastSeen || 0) > 4500) {
             delete next[key];
             updated = true;
           }
@@ -511,15 +511,15 @@ function App() {
         return updated ? next : prev;
       });
 
-      // Guest heartbeat timeout check: If connected to Host but no signal for > 9.5s
+      // Guest heartbeat timeout check: If connected to Host but no signal for > 6s
       if (!isHostRef.current && (peerStatus === 'connected' || peerStatus === 'connecting')) {
-        if (now - lastHostSeenRef.current > 9500) {
-          addP2pLog('Guest: Host heartbeat timeout (>9.5s). Connection lost!');
+        if (now - lastHostSeenRef.current > 6000) {
+          addP2pLog('Guest: Host heartbeat timeout (>6s). Connection lost!');
           disconnectPeer();
           setConnectionLostReason('Host heartbeat timeout (Host lost connection, closed tab, or refreshed).');
         }
       }
-    }, 2500);
+    }, 1500);
 
     return () => {
       clearInterval(heartbeatInterval);
@@ -544,6 +544,12 @@ function App() {
         });
       } else if (guestConnectionRef.current && guestConnectionRef.current.open) {
         guestConnectionRef.current.send(payload);
+      }
+
+      if (activeRoomCodeRef.current) {
+        try {
+          navigator.sendBeacon(`https://ntfy.sh/viva_room_${activeRoomCodeRef.current}`, JSON.stringify(payload));
+        } catch (_) {}
       }
     };
 
@@ -1047,6 +1053,30 @@ function App() {
             ? 'The Host reset room examination data.'
             : 'The Host closed or refreshed their browser tab.'
         );
+      } else if (isHostRef.current && !data.isHost) {
+        // Host handling guest disconnect/refresh
+        const guestName = data.senderName || 'Guest';
+        addP2pLog(`Host: Guest "${guestName}" disconnected or refreshed.`);
+        
+        // Remove guest from connectedPeers roster
+        setConnectedPeers(prev => {
+          const next = { ...prev };
+          const keyToRemove = peerId !== 'remote' ? peerId : guestName;
+          delete next[keyToRemove];
+          Object.keys(next).forEach(k => {
+            if (next[k] && next[k].name === guestName) delete next[k];
+          });
+          return next;
+        });
+
+        // Clean up WebRTC connection if present
+        if (peerId !== 'remote' && hostConnectionsRef.current.has(peerId)) {
+          try { hostConnectionsRef.current.get(peerId).close(); } catch (_) {}
+          hostConnectionsRef.current.delete(peerId);
+        }
+
+        const remainingCount = hostConnectionsRef.current.size + 1;
+        setStatusMsg(`Guest "${guestName}" disconnected/refreshed. (${remainingCount} device active)`);
       }
       return;
     }
