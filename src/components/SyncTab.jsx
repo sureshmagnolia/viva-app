@@ -234,46 +234,27 @@ function SyncTab({
           )}
 
           {peerStatus === 'disconnected' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
-                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', padding: '1.5rem', borderRadius: '12px', textAlign: 'center' }}>
-                  <h3 style={{ margin: '0 0 0.5rem 0', color: '#38bdf8' }}>Host Examiner (Create Room)</h3>
-                  <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '1.25rem' }}>Generate a room code to share with your co-examiner.</p>
-                  <button className="btn btn-primary" onClick={initHostPeer} style={{ width: '100%', padding: '12px', fontSize: '1rem', fontWeight: 600 }}>
-                    Create Sync Room
-                  </button>
-                </div>
-
-                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', padding: '1.5rem', borderRadius: '12px', textAlign: 'center' }}>
-                  <h3 style={{ margin: '0 0 0.5rem 0', color: '#c084fc' }}>Join Examiner (Enter Room)</h3>
-                  <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.75rem' }}>Enter the 6-character room code from host device.</p>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    placeholder="e.g. X9K2L4"
-                    value={joinInput}
-                    onChange={(e) => setJoinInput(e.target.value.toUpperCase())}
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.4)', color: '#fff', textAlign: 'center', letterSpacing: '3px', fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '0.75rem' }}
-                  />
-                  <button className="btn btn-secondary" onClick={() => joinPeerRoom(joinInput)} style={{ width: '100%', padding: '10px', fontSize: '0.95rem' }}>
-                    Connect to Room
-                  </button>
-                </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', padding: '1.5rem', borderRadius: '12px', textAlign: 'center' }}>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: '#38bdf8' }}>Host Examiner (Create Room)</h3>
+                <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '1.25rem' }}>Generate a room code to share with your co-examiner.</p>
+                <button className="btn btn-primary" onClick={initHostPeer} style={{ width: '100%', padding: '12px', fontSize: '1rem', fontWeight: 600 }}>
+                  Create Sync Room
+                </button>
               </div>
 
-              {purgeSessionMemory && (
-                <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '1rem', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                  <div style={{ fontSize: '0.85rem', color: '#fca5a5' }}>
-                    🔥 <strong>Finished Viva Examination?</strong> Click Purge to clear all student mark data from local browser memory & storage.
-                  </div>
-                  <button 
-                    onClick={purgeSessionMemory}
-                    style={{ background: '#dc2626', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    🔥 Purge & Destroy Session Data
-                  </button>
-                </div>
-              )}
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', padding: '1.5rem', borderRadius: '12px', textAlign: 'center' }}>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: '#c084fc' }}>Join Examiner (Enter Room)</h3>
+                <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.75rem' }}>Enter the 6-character room code from host device.</p>
+                <input
+                  type="text"
+                  maxLength={6}
+                  placeholder="e.g. X9K2L4"
+                  value={joinInput}
+                  onChange={(e) => setJoinInput(e.target.value.toUpperCase())}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.4)', color: '#fff', textAlign: 'center', letterSpacing: '3px', fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '0.75rem' }}
+                />
+              </div>
             </div>
           )}
 
@@ -333,21 +314,9 @@ function SyncTab({
                 </>
               )}
 
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '1.25rem', flexWrap: 'wrap' }}>
-                <button className="btn btn-secondary" onClick={disconnectPeer} style={{ padding: '8px 20px', fontSize: '0.9rem' }}>
-                  Disconnect Room
-                </button>
-                {purgeSessionMemory && (
-                  <button 
-                    className="btn btn-danger" 
-                    onClick={purgeSessionMemory} 
-                    style={{ padding: '8px 20px', fontSize: '0.9rem', background: '#dc2626', borderColor: '#b91c1c', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}
-                    title="Permanently wipe all session marks from RAM & IndexedDB"
-                  >
-                    🔥 Purge & Destroy Session
-                  </button>
-                )}
-              </div>
+              <button className="btn btn-danger" onClick={disconnectPeer} style={{ marginTop: '1.25rem', padding: '8px 20px' }}>
+                Disconnect Sync Session
+              </button>
             </div>
           )}
 
