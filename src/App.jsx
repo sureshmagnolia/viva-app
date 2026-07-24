@@ -634,7 +634,7 @@ function App() {
     let published = false;
     let pointerKey = b64Payload;
 
-    // Provider 1: ntfy.sh (Raw Body -> No CORS Preflight!)
+    // Provider 1: Direct ntfy.sh
     try {
       const res1 = await fetch(`https://ntfy.sh/viva_room_${targetCode}`, {
         method: 'POST',
@@ -644,16 +644,40 @@ function App() {
       if (res1.ok) published = true;
     } catch (_e1) {}
 
-    // Provider 2: ntfy.net (Fallback Raw Body POST -> No CORS Preflight!)
+    // Provider 2: Proxy ntfy.sh (bypasses domain blocking on strict Wi-Fi)
     if (!published) {
       try {
-        const res2 = await fetch(`https://ntfy.net/viva_room_${targetCode}`, {
+        const res2 = await fetch(`https://corsproxy.io/?https://ntfy.sh/viva_room_${targetCode}`, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain' },
           body: pointerKey
         });
         if (res2.ok) published = true;
       } catch (_e2) {}
+    }
+
+    // Provider 3: Direct ntfy.net
+    if (!published) {
+      try {
+        const res3 = await fetch(`https://ntfy.net/viva_room_${targetCode}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: pointerKey
+        });
+        if (res3.ok) published = true;
+      } catch (_e3) {}
+    }
+
+    // Provider 4: Proxy ntfy.net
+    if (!published) {
+      try {
+        const res4 = await fetch(`https://corsproxy.io/?https://ntfy.net/viva_room_${targetCode}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: pointerKey
+        });
+        if (res4.ok) published = true;
+      } catch (_e4) {}
     }
 
     if (published) {
@@ -679,7 +703,7 @@ function App() {
       let data = null;
       let fetchedPointerKey = null;
 
-      // 1. Fetch from ntfy.sh raw (Immediate non-blocking return)
+      // 1. Direct ntfy.sh
       try {
         const res1 = await fetch(`https://ntfy.sh/viva_room_${targetCode}/raw?poll=1`);
         if (res1.ok) {
@@ -692,12 +716,10 @@ function App() {
         }
       } catch (_err1) {}
 
-      if (isDisconnectingRef.current || !activeRoomCodeRef.current) return;
-
-      // 2. Fallback to ntfy.net raw
+      // 2. Proxy ntfy.sh fallback (if ntfy.sh domain is blocked on network)
       if (!fetchedPointerKey) {
         try {
-          const res2 = await fetch(`https://ntfy.net/viva_room_${targetCode}/raw?poll=1`);
+          const res2 = await fetch(`https://corsproxy.io/?https://ntfy.sh/viva_room_${targetCode}/raw?poll=1`);
           if (res2.ok) {
             const text2 = await res2.text();
             const lines2 = text2.trim().split('\n');
@@ -707,6 +729,36 @@ function App() {
             }
           }
         } catch (_err2) {}
+      }
+
+      // 3. Direct ntfy.net
+      if (!fetchedPointerKey) {
+        try {
+          const res3 = await fetch(`https://ntfy.net/viva_room_${targetCode}/raw?poll=1`);
+          if (res3.ok) {
+            const text3 = await res3.text();
+            const lines3 = text3.trim().split('\n');
+            const lastLine3 = lines3[lines3.length - 1];
+            if (lastLine3 && lastLine3.trim()) {
+              fetchedPointerKey = lastLine3.trim();
+            }
+          }
+        } catch (_err3) {}
+      }
+
+      // 4. Proxy ntfy.net fallback
+      if (!fetchedPointerKey) {
+        try {
+          const res4 = await fetch(`https://corsproxy.io/?https://ntfy.net/viva_room_${targetCode}/raw?poll=1`);
+          if (res4.ok) {
+            const text4 = await res4.text();
+            const lines4 = text4.trim().split('\n');
+            const lastLine4 = lines4[lines4.length - 1];
+            if (lastLine4 && lastLine4.trim()) {
+              fetchedPointerKey = lastLine4.trim();
+            }
+          }
+        } catch (_err4) {}
       }
 
       if (isDisconnectingRef.current || !activeRoomCodeRef.current) return;
