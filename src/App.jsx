@@ -557,8 +557,36 @@ function App() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [deviceRole, deviceName]);
 
+  const applySyncState = (data) => {
+    if (!data) return;
+    const incomingRole = data.senderRole || 'all';
+
+    if (data.isReset) {
+      addP2pLog(`Sync: Received Reset Data signal for ${data.resetApp || 'all'} from ${data.senderName || 'partner'}`);
+      if (data.resetApp === 'project' || data.resetApp === 'all' || !data.resetApp) {
+        setProjectDetails(data.projectDetails || { centre: '', date: '', courseCode: '' });
+        setProjectStudents([]);
+      }
+      if (data.resetApp === 'comp' || data.resetApp === 'all' || !data.resetApp) {
+        setCompDetails(data.compDetails || { centre: '', date: '', courseCode: 'Viva Voce / BOT4V01' });
+        setCompStudents([]);
+      }
+      setStatusMsg(`Data reset by ${data.senderName || 'partner device'} at ${new Date().toLocaleTimeString()}`);
+      return;
+    }
+
+    if (data.projectDetails) setProjectDetails(data.projectDetails);
+    if (data.projectStudents && Array.isArray(data.projectStudents)) {
+      setProjectStudents(prev => mergeStudentData(prev, data.projectStudents, 'ProjectVivaApp', incomingRole, { isReset: data.isReset, syncDeletions: data.syncDeletions }));
+    }
+    if (data.compDetails) setCompDetails(data.compDetails);
+    if (data.compStudents && Array.isArray(data.compStudents)) {
+      setCompStudents(prev => mergeStudentData(prev, data.compStudents, 'ComprehensiveVivaApp', incomingRole, { isReset: data.isReset, syncDeletions: data.syncDeletions }));
+    }
+  };
+
   // Zero-Preflight Fast HTTPS Cloud Relay (ntfy.sh raw + keyvalue.immanuel.co)
-  const pushToHttpsCloud = async (pd, ps, cd, cs, codeOverride, incomingTs) => {
+  const pushToHttpsCloud = async (pd, ps, cd, cs, codeOverride, incomingTs, extraFlags = {}) => {
     const targetCode = codeOverride || activeRoomCodeRef.current || roomCode;
     if (!targetCode) return;
 
@@ -572,7 +600,8 @@ function App() {
       senderRole: deviceRole,
       senderName: deviceName,
       senderActiveTab: currentAppTab,
-      timestamp: ts
+      timestamp: ts,
+      ...extraFlags
     };
     let payloadToPublish = payload;
     if (cryptoKeyRef.current) {
@@ -738,15 +767,7 @@ function App() {
 
           isInternalHistoryChangeRef.current = true;
           try {
-            const incomingRole = data.senderRole || 'all';
-            if (data.projectDetails) setProjectDetails(data.projectDetails);
-            if (data.projectStudents && Array.isArray(data.projectStudents)) {
-              setProjectStudents(prev => mergeStudentData(prev, data.projectStudents, 'ProjectVivaApp', incomingRole));
-            }
-            if (data.compDetails) setCompDetails(data.compDetails);
-            if (data.compStudents && Array.isArray(data.compStudents)) {
-              setCompStudents(prev => mergeStudentData(prev, data.compStudents, 'ComprehensiveVivaApp', incomingRole));
-            }
+            applySyncState(data);
 
             setStatusMsg(`Synced update received via Cloud Relay at ${new Date().toLocaleTimeString()}`);
             addP2pLog(`HTTPS Cloud: Synced state update received for Room ${targetCode}`);
@@ -877,15 +898,7 @@ function App() {
           if (data.timestamp && data.timestamp > lastHttpsTsRef.current) {
             lastHttpsTsRef.current = data.timestamp;
           }
-          const incomingRole = data.senderRole || 'all';
-          if (data.projectDetails) setProjectDetails(data.projectDetails);
-          if (data.projectStudents && Array.isArray(data.projectStudents)) {
-            setProjectStudents(prev => mergeStudentData(prev, data.projectStudents, 'ProjectVivaApp', incomingRole));
-          }
-          if (data.compDetails) setCompDetails(data.compDetails);
-          if (data.compStudents && Array.isArray(data.compStudents)) {
-            setCompStudents(prev => mergeStudentData(prev, data.compStudents, 'ComprehensiveVivaApp', incomingRole));
-          }
+          applySyncState(data);
 
           // Relay to ALL OTHER connected guest devices in the room over WebRTC!
           hostConnectionsRef.current.forEach((otherConn, peerId) => {
@@ -1005,15 +1018,7 @@ function App() {
           if (data.timestamp && data.timestamp > lastHttpsTsRef.current) {
             lastHttpsTsRef.current = data.timestamp;
           }
-          const incomingRole = data.senderRole || 'all';
-          if (data.projectDetails) setProjectDetails(data.projectDetails);
-          if (data.projectStudents && Array.isArray(data.projectStudents)) {
-            setProjectStudents(prev => mergeStudentData(prev, data.projectStudents, 'ProjectVivaApp', incomingRole));
-          }
-          if (data.compDetails) setCompDetails(data.compDetails);
-          if (data.compStudents && Array.isArray(data.compStudents)) {
-            setCompStudents(prev => mergeStudentData(prev, data.compStudents, 'ComprehensiveVivaApp', incomingRole));
-          }
+          applySyncState(data);
 
           checkAndPromptRoleConflict(data.senderRole, data.senderName, connectedPeers);
 
@@ -1111,7 +1116,7 @@ function App() {
     });
   };
 
-  const broadcastGlobalState = (pd, ps, cd, cs) => {
+  const broadcastGlobalState = (pd, ps, cd, cs, extraFlags = {}) => {
     if (isInternalHistoryChangeRef.current) return;
 
     const payload = {
@@ -1123,7 +1128,8 @@ function App() {
       senderRole: deviceRole,
       senderName: deviceName,
       senderActiveTab: currentAppTab,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      ...extraFlags
     };
 
     // 2. Broadcast to P2P network peers
@@ -1132,12 +1138,12 @@ function App() {
         if (conn.open) conn.send(payload);
       });
       // Also push to HTTPS Cloud Relay
-      pushToHttpsCloud(pd, ps, cd, cs);
+      pushToHttpsCloud(pd, ps, cd, cs, null, null, extraFlags);
     } else if (guestConnectionRef.current && guestConnectionRef.current.open) {
       guestConnectionRef.current.send(payload);
     } else if (activeRoomCodeRef.current || roomCode) {
       // Guest pushes to HTTPS Cloud Relay if WebRTC is blocked
-      pushToHttpsCloud(pd, ps, cd, cs);
+      pushToHttpsCloud(pd, ps, cd, cs, null, null, extraFlags);
     }
   };
 
@@ -1148,18 +1154,19 @@ function App() {
   }, [projectDetails, projectStudents, compDetails, compStudents, deviceRole, deviceName, currentAppTab]);
 
   const handleResetDataWrapper = (appSource) => {
+    const isResetFlag = { isReset: true, resetApp: appSource };
     if (appSource === 'project') {
       const defaultDetails = { centre: '', date: '', courseCode: '' };
       const defaultStudents = [];
       setProjectDetails(defaultDetails);
       setProjectStudents(defaultStudents);
-      broadcastGlobalState(defaultDetails, defaultStudents, compDetails, compStudents);
+      broadcastGlobalState(defaultDetails, defaultStudents, compDetails, compStudents, isResetFlag);
     } else if (appSource === 'comp') {
       const defaultDetails = { centre: '', date: '', courseCode: 'Viva Voce / BOT4V01' };
       const defaultStudents = [];
       setCompDetails(defaultDetails);
       setCompStudents(defaultStudents);
-      broadcastGlobalState(projectDetails, projectStudents, defaultDetails, defaultStudents);
+      broadcastGlobalState(projectDetails, projectStudents, defaultDetails, defaultStudents, isResetFlag);
     }
   };
 

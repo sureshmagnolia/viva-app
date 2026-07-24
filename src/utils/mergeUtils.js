@@ -17,9 +17,14 @@ export const normalizeRegNo = (regNo) => {
  * @param {String} mergeRole - 'ex1', 'ex2', or 'all'
  * @returns {Array} New merged students array
  */
-export const mergeStudentData = (currentStudents = [], incomingStudents = [], appType, mergeRole = 'all') => {
+export const mergeStudentData = (currentStudents = [], incomingStudents = [], appType, mergeRole = 'all', options = {}) => {
   if (!Array.isArray(incomingStudents)) {
     return currentStudents;
+  }
+
+  // Handle explicit Reset Data signal
+  if (options && options.isReset) {
+    return incomingStudents.map(s => ({ ...s }));
   }
 
   // Create lookups by ID and by Register Number for existing students
@@ -33,13 +38,15 @@ export const mergeStudentData = (currentStudents = [], incomingStudents = [], ap
     if (reg) regMap.set(reg, s);
   });
 
+  const incomingIdSet = new Set(incomingStudents.map(s => s.id ? String(s.id) : null).filter(Boolean));
+
   incomingStudents.forEach(incStudent => {
     // 1. Primary match: by immutable student ID
     let target = incStudent.id ? idMap.get(String(incStudent.id)) : null;
 
-    // 2. Secondary match: by Register Number if ID didn't match and Reg No is non-empty
+    // 2. Secondary match: by Register Number ONLY if incoming student has NO id
     const incReg = normalizeRegNo(incStudent.registerNumber);
-    if (!target && incReg) {
+    if (!target && !incStudent.id && incReg) {
       target = regMap.get(incReg);
     }
 
@@ -119,6 +126,10 @@ export const mergeStudentData = (currentStudents = [], incomingStudents = [], ap
       if (updatedReg) regMap.set(updatedReg, target);
     }
   });
+
+  if (options && options.syncDeletions && incomingIdSet.size > 0) {
+    return mergedList.filter(s => !s.id || incomingIdSet.has(String(s.id)));
+  }
 
   return mergedList;
 };
