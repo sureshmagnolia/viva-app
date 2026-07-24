@@ -69,7 +69,7 @@ const CompExaminerTab = ({
           backdropFilter: 'blur(10px)'
         }}>
           <div style={{ flex: '1 1 300px', fontSize: '0.95rem', fontWeight: '700', lineHeight: '1.4' }}>
-            ⚠️ <strong>Role Mismatch Warning:</strong> Your device ({deviceName}) is set as <strong>{deviceRole === 'ex1' ? 'Examiner 1' : 'Examiner 2'}</strong>, but you are currently viewing <strong>{title}</strong>. Avoid entering marks here to prevent overwriting your partner's entries.
+            ⚠️ <strong>Notice:</strong> Your device ({deviceName}) is assigned as <strong>{deviceRole === 'ex1' ? 'Examiner 1' : 'Examiner 2'}</strong>, but you are currently viewing <strong>{title}</strong>. Any marks entered here will update {title}'s data.
           </div>
           {onSwitchTab && (
             <button
