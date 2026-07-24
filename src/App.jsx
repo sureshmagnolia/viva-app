@@ -476,7 +476,7 @@ function App() {
   // Heartbeat Sender & Liveness Presence Monitor
   useEffect(() => {
     const heartbeatInterval = setInterval(() => {
-      if (peerStatus === 'connected' || peerStatus === 'connecting') {
+      if ((peerStatus === 'connected' || peerStatus === 'connecting') && activeRoomCodeRef.current) {
         const payload = {
           type: 'PEER_HEARTBEAT',
           senderRole: deviceRole,
@@ -485,25 +485,35 @@ function App() {
           timestamp: Date.now()
         };
 
+        let sentP2p = false;
         if (isHostRef.current) {
           hostConnectionsRef.current.forEach(conn => {
-            if (conn.open) conn.send(payload);
+            if (conn.open) {
+              conn.send(payload);
+              sentP2p = true;
+            }
           });
         } else if (guestConnectionRef.current && guestConnectionRef.current.open) {
           guestConnectionRef.current.send(payload);
+          sentP2p = true;
+        }
+
+        // If WebRTC P2P is not open, send heartbeat over Cloud Relay so devices never drop!
+        if (!sentP2p && activeRoomCodeRef.current) {
+          pushToHttpsCloud(projectDetails, projectStudents, compDetails, compStudents, activeRoomCodeRef.current, Date.now(), { isHeartbeat: true });
         }
       }
-    }, 2000);
+    }, 2500);
 
     const livenessCheckInterval = setInterval(() => {
       const now = Date.now();
 
-      // Prune inactive roster entries (>4.5s)
+      // Prune inactive roster entries (>15s timeout for mobile network stability)
       setConnectedPeers(prev => {
         let updated = false;
         const next = { ...prev };
         Object.entries(next).forEach(([key, peer]) => {
-          if (now - (peer.lastSeen || 0) > 4500) {
+          if (now - (peer.lastSeen || 0) > 15000) {
             delete next[key];
             updated = true;
           }
@@ -511,21 +521,21 @@ function App() {
         return updated ? next : prev;
       });
 
-      // Guest heartbeat timeout check: If connected to Host but no signal for > 6s
+      // Guest connection check: If connected to Host but no WebRTC / Cloud signal for > 25s
       if (!isHostRef.current && (peerStatus === 'connected' || peerStatus === 'connecting')) {
-        if (now - lastHostSeenRef.current > 6000) {
-          addP2pLog('Guest: Host heartbeat timeout (>6s). Connection lost!');
+        if (now - lastHostSeenRef.current > 25000) {
+          addP2pLog('Guest: Host signal timeout (>25s). Session disconnected.');
           disconnectPeer();
-          setConnectionLostReason('Host heartbeat timeout (Host lost connection, closed tab, or refreshed).');
+          setConnectionLostReason('Host lost internet connection, closed browser tab, or ended session.');
         }
       }
-    }, 1500);
+    }, 2000);
 
     return () => {
       clearInterval(heartbeatInterval);
       clearInterval(livenessCheckInterval);
     };
-  }, [peerStatus, deviceRole, deviceName, currentAppTab]);
+  }, [peerStatus, deviceRole, deviceName, currentAppTab, projectDetails, projectStudents, compDetails, compStudents]);
 
   // Notify connected peers when user leaves or refreshes the page
   useEffect(() => {
@@ -937,6 +947,9 @@ function App() {
     // Start Cloud Relay listener immediately as fallback in case WebRTC fails
     startHttpsCloudListening(cleanCode);
 
+    // Send immediate join ping to Cloud Relay so Host sees Guest right away
+    pushToHttpsCloud(projectDetails, projectStudents, compDetails, compStudents, cleanCode, Date.now(), { isJoinPing: true });
+
     peer.on('open', (myId) => {
       const hostPeerId = `viva-${cleanCode}`;
       addP2pLog(`Guest: Registered with signaling server! My ID = ${myId}`);
@@ -949,6 +962,9 @@ function App() {
 
     peer.on('error', (err) => {
       addP2pLog(`Guest: WebRTC Error (${err.type}): ${err.message}. Using Cloud Relay fallback!`);
+      setPeerStatus('connected');
+      setSyncMode('https');
+      setStatusMsg(`Connected via Cloud Relay to Room ${cleanCode}! Multi-device background sync active.`);
     });
   };
 
