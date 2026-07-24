@@ -14,13 +14,14 @@ const APP_VERSION = "v2.1.0 (AES-256-GCM E2EE & Ephemeral Zero-Cloud-Storage Syn
 
 // PeerJS signaling & WebRTC configuration with static IP & domain STUN/TURN relays
 const PEER_OPTIONS = {
-  debug: 2,
+  debug: 1,
   config: {
     iceServers: [
-      { urls: 'stun:142.250.159.127:19302' },
-      { urls: 'stun:74.125.200.127:19302' },
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:global.stun.twilio.com:3478' },
       {
         urls: 'turn:openrelay.metered.ca:80',
         username: 'openrelay',
@@ -28,6 +29,11 @@ const PEER_OPTIONS = {
       },
       {
         urls: 'turn:openrelay.metered.ca:443',
+        username: 'openrelay',
+        credential: 'openrelay'
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
         username: 'openrelay',
         credential: 'openrelay'
       }
@@ -522,7 +528,7 @@ function App() {
       });
 
       // Guest connection check: If connected to Host but no WebRTC / Cloud signal for > 25s
-      if (!isHostRef.current && (peerStatus === 'connected' || peerStatus === 'connecting')) {
+      if (!isHostRef.current && peerStatus === 'connected') {
         if (now - lastHostSeenRef.current > 25000) {
           addP2pLog('Guest: Host signal timeout (>25s). Session disconnected.');
           disconnectPeer();
@@ -632,18 +638,23 @@ function App() {
     try {
       const res1 = await fetch(`https://ntfy.sh/viva_room_${targetCode}`, {
         method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
         body: pointerKey
       });
       if (res1.ok) published = true;
     } catch (_e1) {}
 
-    // Provider 2: keyvalue.immanuel.co (URL-based API -> No CORS Preflight!)
-    try {
-      const res2 = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/vivaapp123/viva_room_${targetCode}/${pointerKey}`, {
-        method: 'POST'
-      });
-      if (res2.ok) published = true;
-    } catch (_e2) {}
+    // Provider 2: ntfy.net (Fallback Raw Body POST -> No CORS Preflight!)
+    if (!published) {
+      try {
+        const res2 = await fetch(`https://ntfy.net/viva_room_${targetCode}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: pointerKey
+        });
+        if (res2.ok) published = true;
+      } catch (_e2) {}
+    }
 
     if (published) {
       lastHttpsTsRef.current = payload.timestamp;
@@ -683,14 +694,16 @@ function App() {
 
       if (isDisconnectingRef.current || !activeRoomCodeRef.current) return;
 
-      // 2. Fallback to keyvalue.immanuel.co
+      // 2. Fallback to ntfy.net raw
       if (!fetchedPointerKey) {
         try {
-          const res2 = await fetch(`https://keyvalue.immanuel.co/api/KeyVal/GetValue/vivaapp123/viva_room_${targetCode}`);
+          const res2 = await fetch(`https://ntfy.net/viva_room_${targetCode}/raw?poll=1`);
           if (res2.ok) {
-            const rawVal = await res2.text();
-            if (rawVal && rawVal !== 'null' && rawVal !== '""') {
-              fetchedPointerKey = rawVal.replace(/^"|"$/g, '');
+            const text2 = await res2.text();
+            const lines2 = text2.trim().split('\n');
+            const lastLine2 = lines2[lines2.length - 1];
+            if (lastLine2 && lastLine2.trim()) {
+              fetchedPointerKey = lastLine2.trim();
             }
           }
         } catch (_err2) {}
@@ -925,6 +938,7 @@ function App() {
     isHostRef.current = false;
     hasSentCloudPingRef.current = false;
     hasPromptedRoleConflictRef.current = false;
+    lastHostSeenRef.current = Date.now();
 
     setPeerStatus('connecting');
     setStatusMsg(`Connecting to Room ${cleanCode}...`);
