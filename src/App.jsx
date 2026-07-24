@@ -345,6 +345,20 @@ function App() {
   const hasReceivedCloudStateRef = useRef(false);
   const lastHostSeenRef = useRef(Date.now());
   const isDisconnectingRef = useRef(false);
+  
+  const cloudHeartbeatCountRef = useRef(0);
+  const projectDetailsRef = useRef(projectDetails);
+  const projectStudentsRef = useRef(projectStudents);
+  const compDetailsRef = useRef(compDetails);
+  const compStudentsRef = useRef(compStudents);
+
+  useEffect(() => {
+    projectDetailsRef.current = projectDetails;
+    projectStudentsRef.current = projectStudents;
+    compDetailsRef.current = compDetails;
+    compStudentsRef.current = compStudents;
+  }, [projectDetails, projectStudents, compDetails, compStudents]);
+
 
   const addP2pLog = (msg) => {
     const time = new Date().toLocaleTimeString();
@@ -506,7 +520,11 @@ function App() {
 
         // If WebRTC P2P is not open, send heartbeat over Cloud Relay so devices never drop!
         if (!sentP2p && activeRoomCodeRef.current) {
-          pushToHttpsCloud(projectDetails, projectStudents, compDetails, compStudents, activeRoomCodeRef.current, Date.now(), { isHeartbeat: true });
+          cloudHeartbeatCountRef.current += 1;
+          // Send Cloud Heartbeat every 10 seconds (4 * 2.5s) to avoid ntfy.sh rate limits
+          if (cloudHeartbeatCountRef.current % 4 === 0) {
+            pushToHttpsCloud(null, null, null, null, activeRoomCodeRef.current, Date.now(), { isHeartbeat: true });
+          }
         }
       }
     }, 2500);
@@ -607,12 +625,13 @@ function App() {
     if (!targetCode) return;
 
     const ts = incomingTs || Date.now();
+    // CRITICAL FIX: Don't send full data array if it's just a heartbeat to avoid 413 Payload Too Large
     const payload = {
       type: 'GLOBAL_SYNC_STATE',
-      projectDetails: pd,
-      projectStudents: ps,
-      compDetails: cd,
-      compStudents: cs,
+      projectDetails: extraFlags.isHeartbeat ? null : pd,
+      projectStudents: extraFlags.isHeartbeat ? null : ps,
+      compDetails: extraFlags.isHeartbeat ? null : cd,
+      compStudents: extraFlags.isHeartbeat ? null : cs,
       senderRole: deviceRole,
       senderName: deviceName,
       senderActiveTab: currentAppTab,
@@ -797,7 +816,13 @@ function App() {
         if (!isHostRef.current && !hasSentCloudPingRef.current) {
           hasSentCloudPingRef.current = true;
           setTimeout(() => {
-            pushToHttpsCloud(data.projectDetails, data.projectStudents, data.compDetails, data.compStudents, targetCode, Date.now());
+            pushToHttpsCloud(projectDetailsRef.current, projectStudentsRef.current, compDetailsRef.current, compStudentsRef.current, targetCode, Date.now());
+          }, 100);
+        }
+
+        if (isHostRef.current && data.isJoinPing) {
+          setTimeout(() => {
+            pushToHttpsCloud(projectDetailsRef.current, projectStudentsRef.current, compDetailsRef.current, compStudentsRef.current, targetCode, Date.now());
           }, 100);
         }
 
@@ -839,7 +864,7 @@ function App() {
     };
 
     pollCloud();
-    cloudPollingIntervalRef.current = setInterval(pollCloud, 1500);
+    cloudPollingIntervalRef.current = setInterval(pollCloud, 3500); // Increased polling interval to 3.5s to prevent 429 Too Many Requests
   };
 
   const attachWebRtcListeners = (conn, label) => {
