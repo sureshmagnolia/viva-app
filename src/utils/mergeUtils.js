@@ -84,10 +84,10 @@ export const mergeStudentData = (currentStudents = [], incomingStudents = [], ap
           }
         });
       } else if (appType === 'ComprehensiveVivaApp') {
-        if (incStudent.ex1) {
+        if ((mergeRole === 'ex1' || mergeRole === 'all') && incStudent.ex1) {
           target.ex1 = { ...(target.ex1 || {}), ...incStudent.ex1 };
         }
-        if (incStudent.ex2) {
+        if ((mergeRole === 'ex2' || mergeRole === 'all') && incStudent.ex2) {
           target.ex2 = { ...(target.ex2 || {}), ...incStudent.ex2 };
         }
       }

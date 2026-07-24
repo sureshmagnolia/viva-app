@@ -1,10 +1,10 @@
 export const calculateExaminerWGP = (grades) => {
-  if (!grades) return 0;
+  if (!grades) return 150;
   let total = 0;
   const points = { 'A+': 10, 'A': 8, 'B': 6, 'C': 4, 'D': 2, 'E': 0 };
   for (let i = 1; i <= 15; i++) {
-    const grade = grades[`q${i}`] || 'E';
-    total += (points[grade] || 0);
+    const grade = (grades[`q${i}`] !== undefined && grades[`q${i}`] !== '') ? grades[`q${i}`] : 'A+';
+    total += (points[grade] !== undefined ? points[grade] : 10);
   }
   return total;
 };

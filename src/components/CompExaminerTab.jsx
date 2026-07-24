@@ -20,8 +20,8 @@ const CompExaminerTab = ({
     let total = 0;
     const points = { 'A+': 10, 'A': 8, 'B': 6, 'C': 4, 'D': 2, 'E': 0 };
     questions.forEach(q => {
-      const grade = studentGrades[q] || 'E';
-      total += (points[grade] || 0);
+      const grade = (studentGrades && studentGrades[q] !== undefined && studentGrades[q] !== '') ? studentGrades[q] : 'A+';
+      total += (points[grade] !== undefined ? points[grade] : 10);
     });
     return total;
   };
