@@ -605,11 +605,11 @@ function App() {
     if (data.isReset) {
       addP2pLog(`Sync: Received Reset Data signal for ${data.resetApp || 'all'} from ${data.senderName || 'partner'}`);
       if (data.resetApp === 'project' || data.resetApp === 'all' || !data.resetApp) {
-        setProjectDetails(data.projectDetails || { centre: '', date: '', courseCode: '' });
+        setProjectDetails(prev => data.projectDetails || { ...prev, courseCode: '' });
         setProjectStudents([]);
       }
       if (data.resetApp === 'comp' || data.resetApp === 'all' || !data.resetApp) {
-        setCompDetails(data.compDetails || { centre: '', date: '', courseCode: 'Viva Voce / BOT4V01' });
+        setCompDetails(prev => data.compDetails || { ...prev, courseCode: 'Viva Voce / BOT4V01' });
         setCompStudents([]);
       }
       setStatusMsg(`Data reset by ${data.senderName || 'partner device'} at ${new Date().toLocaleTimeString()}`);
@@ -1173,13 +1173,13 @@ function App() {
   const handleResetDataWrapper = (appSource) => {
     const isResetFlag = { isReset: true, resetApp: appSource };
     if (appSource === 'project') {
-      const defaultDetails = { centre: '', date: '', courseCode: '' };
+      const defaultDetails = { ...projectDetails, courseCode: '' };
       const defaultStudents = [];
       setProjectDetails(defaultDetails);
       setProjectStudents(defaultStudents);
       broadcastGlobalState(defaultDetails, defaultStudents, compDetails, compStudents, isResetFlag);
     } else if (appSource === 'comp') {
-      const defaultDetails = { centre: '', date: '', courseCode: 'Viva Voce / BOT4V01' };
+      const defaultDetails = { ...compDetails, courseCode: 'Viva Voce / BOT4V01' };
       const defaultStudents = [];
       setCompDetails(defaultDetails);
       setCompStudents(defaultStudents);

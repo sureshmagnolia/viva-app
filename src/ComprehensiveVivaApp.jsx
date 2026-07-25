@@ -72,7 +72,7 @@ function ComprehensiveVivaApp({
       localStorage.removeItem('comp_viva_details');
       localStorage.removeItem('comp_viva_students');
       clearIndexedDB();
-      setDetails({ centre: '', date: '', courseCode: 'Viva Voce / BOT4V01' });
+      setDetails(prev => ({ ...prev, courseCode: 'Viva Voce / BOT4V01' }));
       setStudents([]);
     }
     setCurrentTab('students');

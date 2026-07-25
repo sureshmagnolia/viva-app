@@ -61,7 +61,7 @@ function ProjectVivaApp({
       localStorage.removeItem('viva_marks_details');
       localStorage.removeItem('viva_marks_students');
       clearIndexedDB();
-      setDetails({ centre: '', date: '', courseCode: '' });
+      setDetails(prev => ({ ...prev, courseCode: '' }));
       setStudents([]);
     }
     setCurrentTab('students');
