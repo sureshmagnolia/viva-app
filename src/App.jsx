@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import mqtt from 'mqtt';
 import Peer from 'peerjs';
 import { Share2 } from 'lucide-react';
 import ProjectVivaApp from './ProjectVivaApp';
@@ -338,6 +339,7 @@ function App() {
   }, [peerStatus]);
 
   const activeRoomCodeRef = useRef('');
+  const mqttClientRef = useRef(null);
   const lastHttpsTsRef = useRef(0);
   const lastPasteKeyRef = useRef('');
   const cloudPollingIntervalRef = useRef(null);
@@ -425,6 +427,11 @@ function App() {
     addP2pLog('Disconnecting Sync Session...');
     isDisconnectingRef.current = true;
     cryptoKeyRef.current = null;
+
+    if (mqttClientRef.current) {
+      try { mqttClientRef.current.end(true); } catch (_) {}
+      mqttClientRef.current = null;
+    }
 
     if (cloudPollingIntervalRef.current) {
       clearInterval(cloudPollingIntervalRef.current);
@@ -523,7 +530,7 @@ function App() {
           cloudHeartbeatCountRef.current += 1;
           // Send Cloud Heartbeat every 10 seconds (4 * 2.5s) to avoid ntfy.sh rate limits
           if (cloudHeartbeatCountRef.current % 4 === 0) {
-            pushToHttpsCloud(null, null, null, null, activeRoomCodeRef.current, Date.now(), { isHeartbeat: true });
+            pushToCloudRelay(null, null, null, null, activeRoomCodeRef.current, Date.now(), { isHeartbeat: true });
           }
         }
       }
@@ -623,13 +630,12 @@ function App() {
     }
   };
 
-  // Zero-Preflight Fast HTTPS Cloud Relay (ntfy.sh raw + keyvalue.immanuel.co)
-  const pushToHttpsCloud = async (pd, ps, cd, cs, codeOverride, incomingTs, extraFlags = {}) => {
+  // MQTT Real-Time Cloud Relay Engine
+  const pushToCloudRelay = async (pd, ps, cd, cs, codeOverride, incomingTs, extraFlags = {}) => {
     const targetCode = codeOverride || activeRoomCodeRef.current || roomCode;
     if (!targetCode) return;
 
     const ts = incomingTs || Date.now();
-    // CRITICAL FIX: Don't send full data array if it's just a heartbeat to avoid 413 Payload Too Large
     const payload = {
       type: 'GLOBAL_SYNC_STATE',
       projectDetails: extraFlags.isHeartbeat ? null : pd,
@@ -642,6 +648,7 @@ function App() {
       timestamp: ts,
       ...extraFlags
     };
+    
     let payloadToPublish = payload;
     if (cryptoKeyRef.current) {
       try {
@@ -652,181 +659,91 @@ function App() {
     }
 
     const payloadStr = JSON.stringify(payloadToPublish);
-    const b64Payload = toBase64Url(payloadStr);
 
-    let published = false;
-    let pointerKey = b64Payload;
-
-    // Provider 1: Direct ntfy.sh
-    try {
-      const res1 = await fetch(`https://ntfy.sh/viva_room_${targetCode}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: pointerKey
+    if (mqttClientRef.current && mqttClientRef.current.connected) {
+      const topic = `viva_room_${targetCode}`;
+      mqttClientRef.current.publish(topic, payloadStr, { qos: 1 }, (err) => {
+        if (!err) {
+          lastHttpsTsRef.current = payload.timestamp;
+          if (!extraFlags.isHeartbeat) {
+             addP2pLog(`MQTT Cloud: Published AES-encrypted state update to ${topic}`);
+          }
+        } else {
+          addP2pLog(`MQTT Cloud Publish Error: ${err.message}`);
+        }
       });
-      if (res1.ok) published = true;
-    } catch (_e1) {}
-
-    // Provider 2: Proxy ntfy.sh (bypasses domain blocking on strict Wi-Fi)
-    if (!published) {
-      try {
-        const res2 = await fetch(`https://corsproxy.io/?https://ntfy.sh/viva_room_${targetCode}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: pointerKey
-        });
-        if (res2.ok) published = true;
-      } catch (_e2) {}
-    }
-
-    // Provider 3: Direct ntfy.net
-    if (!published) {
-      try {
-        const res3 = await fetch(`https://ntfy.net/viva_room_${targetCode}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: pointerKey
-        });
-        if (res3.ok) published = true;
-      } catch (_e3) {}
-    }
-
-    // Provider 4: Proxy ntfy.net
-    if (!published) {
-      try {
-        const res4 = await fetch(`https://corsproxy.io/?https://ntfy.net/viva_room_${targetCode}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: pointerKey
-        });
-        if (res4.ok) published = true;
-      } catch (_e4) {}
-    }
-
-    if (published) {
-      lastHttpsTsRef.current = payload.timestamp;
-      lastPasteKeyRef.current = pointerKey;
-      addP2pLog(`HTTPS Cloud: Published AES-256 encrypted state update for Room ${targetCode}`);
     } else {
-      addP2pLog(`HTTPS Cloud Push Warning: All cloud relays unreachable.`);
+      if (!extraFlags.isHeartbeat) addP2pLog(`MQTT Cloud Push Warning: MQTT not connected.`);
     }
   };
 
-  const startHttpsCloudListening = (codeOverride) => {
+  const startCloudRelayListening = (codeOverride) => {
     const targetCode = codeOverride || activeRoomCodeRef.current || roomCode;
     if (!targetCode || isDisconnectingRef.current) return;
 
-    if (cloudPollingIntervalRef.current) return;
+    if (mqttClientRef.current) return; // Already connected
 
-    addP2pLog(`HTTPS Cloud: Activating Non-Blocking Cloud Relay Listener for Room ${targetCode}...`);
+    addP2pLog(`MQTT Cloud: Connecting to wss://broker.emqx.io:8084/mqtt for Room ${targetCode}...`);
 
-    const pollCloud = async () => {
+    const clientId = 'viva_mqtt_' + Math.random().toString(16).substr(2, 8);
+    const client = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
+      clientId,
+      clean: true,
+      connectTimeout: 5000,
+      reconnectPeriod: 2000,
+    });
+
+    mqttClientRef.current = client;
+
+    client.on('connect', () => {
+      if (isDisconnectingRef.current || !activeRoomCodeRef.current) {
+        client.end(true);
+        return;
+      }
+      addP2pLog(`MQTT Cloud: Connected! Subscribing to viva_room_${targetCode}`);
+      client.subscribe(`viva_room_${targetCode}`, { qos: 1 });
+    });
+
+    client.on('message', async (topic, message) => {
       if (isDisconnectingRef.current || !activeRoomCodeRef.current) return;
 
       let data = null;
-      let fetchedPointerKey = null;
-
-      // 1. Direct ntfy.sh
       try {
-        const res1 = await fetch(`https://ntfy.sh/viva_room_${targetCode}/raw?poll=1`);
-        if (res1.ok) {
-          const text = await res1.text();
-          const lines = text.trim().split('\n');
-          const lastLine = lines[lines.length - 1];
-          if (lastLine && lastLine.trim()) {
-            fetchedPointerKey = lastLine.trim();
-          }
-        }
-      } catch (_err1) {}
-
-      // 2. Proxy ntfy.sh fallback (if ntfy.sh domain is blocked on network)
-      if (!fetchedPointerKey) {
-        try {
-          const res2 = await fetch(`https://corsproxy.io/?https://ntfy.sh/viva_room_${targetCode}/raw?poll=1`);
-          if (res2.ok) {
-            const text2 = await res2.text();
-            const lines2 = text2.trim().split('\n');
-            const lastLine2 = lines2[lines2.length - 1];
-            if (lastLine2 && lastLine2.trim()) {
-              fetchedPointerKey = lastLine2.trim();
-            }
-          }
-        } catch (_err2) {}
+        data = JSON.parse(message.toString());
+      } catch (e) {
+        return;
       }
 
-      // 3. Direct ntfy.net
-      if (!fetchedPointerKey) {
-        try {
-          const res3 = await fetch(`https://ntfy.net/viva_room_${targetCode}/raw?poll=1`);
-          if (res3.ok) {
-            const text3 = await res3.text();
-            const lines3 = text3.trim().split('\n');
-            const lastLine3 = lines3[lines3.length - 1];
-            if (lastLine3 && lastLine3.trim()) {
-              fetchedPointerKey = lastLine3.trim();
-            }
-          }
-        } catch (_err3) {}
-      }
-
-      // 4. Proxy ntfy.net fallback
-      if (!fetchedPointerKey) {
-        try {
-          const res4 = await fetch(`https://corsproxy.io/?https://ntfy.net/viva_room_${targetCode}/raw?poll=1`);
-          if (res4.ok) {
-            const text4 = await res4.text();
-            const lines4 = text4.trim().split('\n');
-            const lastLine4 = lines4[lines4.length - 1];
-            if (lastLine4 && lastLine4.trim()) {
-              fetchedPointerKey = lastLine4.trim();
-            }
-          }
-        } catch (_err4) {}
-      }
-
-      if (isDisconnectingRef.current || !activeRoomCodeRef.current) return;
-
-      // Process fetched pointer key
-      if (fetchedPointerKey && fetchedPointerKey !== lastPasteKeyRef.current) {
-        lastPasteKeyRef.current = fetchedPointerKey;
-        try {
-          data = JSON.parse(fromBase64Url(fetchedPointerKey));
-        } catch (_parseErr) {}
-      }
-
-      if (isDisconnectingRef.current || !activeRoomCodeRef.current) return;
-
-      // Decrypt AES-256 E2EE packet if encrypted
       if (data && data.isEncrypted) {
         if (cryptoKeyRef.current) {
           const decrypted = await decryptPayload(data, cryptoKeyRef.current);
           if (!decrypted) {
-            addP2pLog(`HTTPS Cloud: Received encrypted packet, but AES-256 decryption failed (key mismatch/unauthorized room).`);
+            addP2pLog(`MQTT Cloud: Received encrypted packet, but AES-256 decryption failed.`);
             return;
           }
           data = decrypted;
         } else {
-          addP2pLog(`HTTPS Cloud: Received encrypted packet, but room key is not initialized.`);
           return;
         }
       }
 
-      if (isDisconnectingRef.current || !activeRoomCodeRef.current) return;
-
       if (data && data.timestamp) {
+        // Prevent echo loop
+        if (data.senderName === deviceName && data.senderRole === deviceRole) return;
+        
         hasReceivedCloudStateRef.current = true;
         handleIncomingPeerState(data, 'CloudHost');
 
         if (!isHostRef.current && !hasSentCloudPingRef.current) {
           hasSentCloudPingRef.current = true;
           setTimeout(() => {
-            pushToHttpsCloud(projectDetailsRef.current, projectStudentsRef.current, compDetailsRef.current, compStudentsRef.current, targetCode, Date.now());
+            pushToCloudRelay(projectDetailsRef.current, projectStudentsRef.current, compDetailsRef.current, compStudentsRef.current, targetCode, Date.now());
           }, 100);
         }
 
         if (isHostRef.current && data.isJoinPing) {
           setTimeout(() => {
-            pushToHttpsCloud(projectDetailsRef.current, projectStudentsRef.current, compDetailsRef.current, compStudentsRef.current, targetCode, Date.now());
+            pushToCloudRelay(projectDetailsRef.current, projectStudentsRef.current, compDetailsRef.current, compStudentsRef.current, targetCode, Date.now());
           }, 100);
         }
 
@@ -837,8 +754,10 @@ function App() {
           try {
             applySyncState(data);
 
-            setStatusMsg(`Synced update received via Cloud Relay at ${new Date().toLocaleTimeString()}`);
-            addP2pLog(`HTTPS Cloud: Synced state update received for Room ${targetCode}`);
+            if (!data.isHeartbeat) {
+              setStatusMsg(`Synced update received via MQTT Cloud at ${new Date().toLocaleTimeString()}`);
+              addP2pLog(`MQTT Cloud: Synced state update received`);
+            }
 
             if (isHostRef.current) {
               if (data.senderRole && data.senderRole !== 'host') {
@@ -851,7 +770,7 @@ function App() {
                     lastSeen: Date.now()
                   }
                 }));
-                setStatusMsg(`Connected! Synced with ${data.senderName || 'Guest Partner'} in Room ${targetCode}`);
+                if (!data.isHeartbeat) setStatusMsg(`Connected! Synced with ${data.senderName || 'Guest Partner'} in Room ${targetCode}`);
               }
               hostConnectionsRef.current.forEach(conn => {
                 if (conn.open) conn.send(data);
@@ -859,16 +778,21 @@ function App() {
             }
 
             setPeerStatus('connected');
-            setSyncMode(prev => (prev === 'p2p' ? 'hybrid' : 'https'));
+            setSyncMode(prev => (prev === 'p2p' ? 'hybrid' : 'mqtt'));
           } finally {
             setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
           }
         }
       }
-    };
+    });
 
-    pollCloud();
-    cloudPollingIntervalRef.current = setInterval(pollCloud, 3500); // Increased polling interval to 3.5s to prevent 429 Too Many Requests
+    client.on('error', (err) => {
+      addP2pLog(`MQTT Cloud Error: ${err.message}`);
+    });
+    
+    client.on('offline', () => {
+      addP2pLog(`MQTT Cloud: Disconnected.`);
+    });
   };
 
   const attachWebRtcListeners = (conn, label) => {
@@ -883,7 +807,7 @@ function App() {
         addP2pLog(`${label}: ICE Connection State changed -> ${pc.iceConnectionState}`);
         if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
           addP2pLog(`${label}: WebRTC blocked by router firewall. Activating Cloud Relay fallback...`);
-          startHttpsCloudListening(activeRoomCodeRef.current);
+          startCloudRelayListening(activeRoomCodeRef.current);
         }
       };
 
@@ -933,9 +857,9 @@ function App() {
       setStatusMsg(`Room ready! Tell partner to enter code: ${code}`);
 
       // Publish initial state to Cloud Relay
-      pushToHttpsCloud(projectDetails, projectStudents, compDetails, compStudents, code);
+      pushToCloudRelay(projectDetails, projectStudents, compDetails, compStudents, code);
       // Start fallback listener
-      startHttpsCloudListening(code);
+      startCloudRelayListening(code);
     });
 
     peer.on('connection', (conn) => {
@@ -946,7 +870,7 @@ function App() {
     peer.on('error', (err) => {
       addP2pLog(`Host: P2P Error (${err.type}): ${err.message}. Enabling Cloud Relay...`);
       console.error('PeerJS Host Error:', err);
-      startHttpsCloudListening(code);
+      startCloudRelayListening(code);
     });
   };
 
@@ -988,7 +912,7 @@ function App() {
           });
           
           // CRITICAL SYNC FIX: Host MUST push incoming P2P updates to the Cloud for Cloud-only guests!
-          pushToHttpsCloud(
+          pushToCloudRelay(
             data.projectDetails, 
             data.projectStudents, 
             data.compDetails, 
@@ -1052,10 +976,10 @@ function App() {
     peerRef.current = peer;
 
     // Start Cloud Relay listener immediately as fallback in case WebRTC fails
-    startHttpsCloudListening(cleanCode);
+    startCloudRelayListening(cleanCode);
 
     // Send immediate join ping to Cloud Relay so Host sees Guest right away
-    pushToHttpsCloud(projectDetails, projectStudents, compDetails, compStudents, cleanCode, Date.now(), { isJoinPing: true });
+    pushToCloudRelay(projectDetails, projectStudents, compDetails, compStudents, cleanCode, Date.now(), { isJoinPing: true });
 
     peer.on('open', (myId) => {
       const hostPeerId = `viva-${cleanCode}`;
@@ -1225,12 +1149,12 @@ function App() {
         if (conn.open) conn.send(payload);
       });
       // Also push to HTTPS Cloud Relay
-      pushToHttpsCloud(pd, ps, cd, cs, null, null, extraFlags);
+      pushToCloudRelay(pd, ps, cd, cs, null, null, extraFlags);
     } else if (guestConnectionRef.current && guestConnectionRef.current.open) {
       guestConnectionRef.current.send(payload);
     } else if (activeRoomCodeRef.current || roomCode) {
       // Guest pushes to HTTPS Cloud Relay if WebRTC is blocked
-      pushToHttpsCloud(pd, ps, cd, cs, null, null, extraFlags);
+      pushToCloudRelay(pd, ps, cd, cs, null, null, extraFlags);
     }
   };
 
