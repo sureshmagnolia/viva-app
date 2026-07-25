@@ -98,7 +98,7 @@ export const mergeStudentData = (currentStudents = [], incomingStudents = [], ap
     }
   });
 
-  if (options && options.syncDeletions && incomingIdSet.size > 0) {
+  if (options && options.syncDeletions) {
     const filteredList = mergedList.filter(s => !s.id || incomingIdSet.has(String(s.id)));
     if (JSON.stringify(currentStudents) === JSON.stringify(filteredList)) {
       return currentStudents;

@@ -20,7 +20,7 @@ function SyncTab({
   connectedPeers = {}
 }) {
   const [activeSubTab, setActiveSubTab] = useState('p2p'); // 'p2p' | 'json'
-  const [joinInput, setJoinInput] = useState('');
+  const [joinInput, setJoinInput] = useState(() => localStorage.getItem('viva_last_joined_room') || '');
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLogs, setCopiedLogs] = useState(false);
   const [showNetworkGuide, setShowNetworkGuide] = useState(false);
@@ -260,7 +260,7 @@ function SyncTab({
                 />
                 <button 
                   className="btn btn-secondary" 
-                  onClick={() => joinPeerRoom(joinInput)} 
+                  onClick={() => { localStorage.setItem('viva_last_joined_room', joinInput); joinPeerRoom(joinInput); }} 
                   disabled={!joinInput.trim()}
                   style={{ width: '100%', padding: '10px', fontSize: '0.95rem', fontWeight: 600 }}
                 >
