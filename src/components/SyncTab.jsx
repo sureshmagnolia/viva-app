@@ -30,6 +30,10 @@ function SyncTab({
   const [jsonAppTarget, setJsonAppTarget] = useState('project'); // 'project' | 'comp'
   const [jsonMergeRole, setJsonMergeRole] = useState('all');
 
+  const hasActiveGuests = Object.keys(connectedPeers).length > 0;
+  const isFullyConnected = peerStatus === 'connected' && (!isHost || hasActiveGuests);
+
+
   const copyRoomCode = () => {
     navigator.clipboard.writeText(roomCode);
     setCopiedCode(true);
@@ -102,7 +106,7 @@ function SyncTab({
             <RotateCw size={14} /> Force Load Latest Build
           </button>
 
-          {peerStatus === 'connected' && (
+          {isFullyConnected && (
             <div style={{ background: 'rgba(34, 197, 94, 0.15)', border: '1px solid #22c55e', color: '#4ade80', padding: '6px 14px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }}></span>
               Background Sync Active (Room: {roomCode})
@@ -267,7 +271,7 @@ function SyncTab({
           )}
 
           {(peerStatus === 'connecting' || peerStatus === 'connected') && (
-            <div style={{ background: peerStatus === 'connected' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(234, 179, 8, 0.1)', border: `1px solid ${peerStatus === 'connected' ? '#22c55e' : '#eab308'}`, padding: '1.5rem', borderRadius: '12px', textAlign: 'center' }}>
+            <div style={{ background: isFullyConnected ? 'rgba(34, 197, 94, 0.1)' : 'rgba(234, 179, 8, 0.1)', border: `1px solid ${isFullyConnected ? '#22c55e' : '#eab308'}`, padding: '1.5rem', borderRadius: '12px', textAlign: 'center' }}>
               {roomCode && (
                 <div style={{ marginBottom: '1.25rem' }}>
                   <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Shared Room Code:</span>
@@ -280,18 +284,18 @@ function SyncTab({
                 </div>
               )}
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '1rem', color: peerStatus === 'connected' ? '#4ade80' : '#fde047', fontWeight: 600 }}>
-                {peerStatus === 'connected' ? <CheckCircle2 size={20} /> : <RefreshCw className="spin" size={20} />}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '1rem', color: isFullyConnected ? '#4ade80' : '#fde047', fontWeight: 600 }}>
+                {isFullyConnected ? <CheckCircle2 size={20} /> : <RefreshCw className="spin" size={20} />}
                 <span>{statusMsg}</span>
               </div>
 
-              {peerStatus === 'connecting' && (
+              {!isFullyConnected && (
                 <div style={{ marginTop: '1rem', fontSize: '0.82rem', color: '#fef08a', background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: '6px', display: 'inline-block' }}>
-                  💡 <i>{isHost ? 'Hosting Room over WebRTC & HTTPS Cloud Relay...' : 'Connecting over WebRTC & HTTPS Cloud Relay...'}</i>
+                  💡 <i>{isHost ? 'Room active. Waiting for guest devices to connect...' : 'Connecting over WebRTC & MQTT Cloud Relay...'}</i>
                 </div>
               )}
 
-              {peerStatus === 'connected' && (
+              {isFullyConnected && (
                 <>
                   <p style={{ fontSize: '0.85rem', color: '#cbd5e1', marginTop: '1rem' }}>
                     ✅ <b>Connected!</b> You can now navigate to <b>Project Viva</b> or <b>Comprehensive Viva</b> tabs above to enter marks. Background sync is running!

@@ -1326,11 +1326,11 @@ function App() {
           }}
         >
           📡 3. Live Multi-Device Sync
-          {peerStatus === 'connected' && (
-            <span style={{ marginLeft: '8px', background: syncMode === 'p2p' ? '#15803d' : '#d97706', color: '#fff', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
-              {syncMode === 'p2p' ? `Room ${roomCode}` : `Cloud ${roomCode}`}
-            </span>
-          )}
+                      {peerStatus === 'connected' && (
+              <span style={{ marginLeft: '8px', background: (isHostRef.current && Object.keys(connectedPeers).length === 0) ? '#d97706' : '#15803d', color: '#fff', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
+                {`Room ${roomCode || activeRoomCodeRef.current}`}
+              </span>
+            )}
           {peerStatus === 'disconnected' && connectionLostReason && (
             <span style={{ marginLeft: '8px', background: '#d97706', color: '#fff', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
               Offline (Saved)
