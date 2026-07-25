@@ -51,9 +51,9 @@ const CompPrintableMarklist = ({ details, students }) => {
 
             return (
               <tr key={student.id}>
-                <td style={{ textAlign: 'center', padding: `${dynamicPadding}px 4px` }}>{student.registerNumber}</td>
-                <td style={{ padding: `${dynamicPadding}px 4px` }}>{student.name}</td>
-                <td style={{ textAlign: 'center', padding: `${dynamicPadding}px 4px` }}>{finalWgp}</td>
+                <td data-label="Reg No." style={{ textAlign: 'center', padding: `${dynamicPadding}px 4px` }}>{student.registerNumber}</td>
+                <td data-label="Name" style={{ padding: `${dynamicPadding}px 4px` }}>{student.name}</td>
+                <td data-label="Grade Point" style={{ textAlign: 'center', padding: `${dynamicPadding}px 4px` }}>{finalWgp}</td>
               </tr>
             );
           })}

@@ -670,3 +670,56 @@ body.print-mode #root {
     white-space: normal !important;
   }
 }
+
+@media screen and (max-width: 768px) {
+
+  /* Convert marklist print-table to cards on mobile screen ONLY */
+  .page {
+    width: 100% !important;
+    min-height: auto !important;
+    padding: 15px !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .print-table, .print-table tbody, .print-table tr, .print-table td {
+    display: block;
+    width: 100%;
+  }
+  .print-table thead {
+    display: none; /* Hide original table header */
+  }
+  .print-table tr {
+    margin-bottom: 15px;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.5);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    overflow: hidden;
+  }
+  .print-table tr.no-border-row {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    padding: 0;
+  }
+  .print-table td {
+    border: none !important;
+    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+    padding: 10px !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: right !important;
+  }
+  .print-table td:last-child {
+    border-bottom: none !important;
+  }
+  .print-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    text-align: left;
+    margin-right: 15px;
+    color: #94a3b8;
+  }
+
+}
