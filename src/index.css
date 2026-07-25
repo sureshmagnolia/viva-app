@@ -644,3 +644,29 @@ body.print-mode #root {
   animation: spin 1.5s linear infinite;
 }
 
+
+/* Mobile Tab Optimizations */
+@media (max-width: 768px) {
+  .master-tabs {
+    flex-direction: column !important;
+    padding: 10px !important;
+    border-bottom: none !important;
+    gap: 8px !important;
+  }
+  .master-tab {
+    border-radius: 8px !important;
+    border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+    white-space: normal !important;
+    text-align: left !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+  }
+  
+  .sub-tabs-container {
+    flex-direction: column !important;
+  }
+  .sub-tabs-container button {
+    white-space: normal !important;
+  }
+}
