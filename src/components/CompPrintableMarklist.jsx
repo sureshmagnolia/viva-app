@@ -11,7 +11,7 @@ const CompPrintableMarklist = ({ details, students }) => {
 
   const rowCount = students.length || 1;
   // Dynamically scale vertical padding so fewer rows stretch to fill the page
-  const dynamicPadding = Math.max(1, Math.min(30, Math.floor(120 / rowCount)));
+  const dynamicPadding = Math.max(5, Math.min(18, Math.floor(180 / rowCount)));
 
   return (
     <div className="printable-marklist">
@@ -59,7 +59,7 @@ const CompPrintableMarklist = ({ details, students }) => {
           })}
           {/* Empty spacer row to push the footer down if there are few students */}
           <tr className="no-border-row">
-            <td colSpan={3} style={{ height: '30px', border: 'none' }}></td>
+            <td colSpan={3} style={{ height: `${Math.max(30, (21 - rowCount) * 35)}px`, border: 'none' }}></td>
           </tr>
         </tbody>
       </table>
