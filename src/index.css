@@ -148,7 +148,7 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
-.master-tab {
+.master-tab, .tabs-header button {
   padding: 1.25rem 2rem;
   background: transparent;
   border: none;
@@ -528,7 +528,7 @@ body.print-mode #root {
     gap: 0.75rem !important;
   }
 
-  .master-tabs {
+  .master-tabs, .tabs-header {
     padding: 8px 8px 0 8px !important;
     gap: 6px !important;
     flex-wrap: nowrap !important;
@@ -536,7 +536,7 @@ body.print-mode #root {
     -webkit-overflow-scrolling: touch;
   }
   
-  .master-tab {
+  .master-tab, .tabs-header button {
     padding: 10px 14px !important;
     font-size: 0.85rem !important;
     white-space: nowrap !important;
@@ -647,13 +647,13 @@ body.print-mode #root {
 
 /* Mobile Tab Optimizations */
 @media (max-width: 768px) {
-  .master-tabs {
+  .master-tabs, .tabs-header {
     flex-direction: column !important;
     padding: 10px !important;
     border-bottom: none !important;
     gap: 8px !important;
   }
-  .master-tab {
+  .master-tab, .tabs-header button {
     border-radius: 8px !important;
     border-bottom: 1px solid rgba(255,255,255,0.08) !important;
     white-space: normal !important;
