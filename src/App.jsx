@@ -414,11 +414,26 @@ function App() {
     }
   };
 
-  const generateRoomCode = () => {
+  const generateRoomCode = (center, date) => {
+    const str = `${(center || '').trim().toLowerCase()}-${(date || '').trim()}`;
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    if (str === '-') {
+      let result = '';
+      for (let i = 0; i < 6; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
+    }
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) + hash) + str.charCodeAt(i); /* hash * 33 + c */
+    }
     let result = '';
+    let val = Math.abs(hash);
     for (let i = 0; i < 6; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
+      result += chars.charAt(val % chars.length);
+      val = Math.floor(val / chars.length);
+      if (val === 0) val = hash + (i * 997);
     }
     return result;
   };
@@ -822,13 +837,13 @@ function App() {
     }
   };
 
-  const initHostPeer = async () => {
+  const initHostPeer = async (hostCenter, hostDate) => {
     disconnectPeer();
     isDisconnectingRef.current = false;
     clearP2pLogs();
     setConnectionLostReason(null);
 
-    const code = generateRoomCode();
+    const code = generateRoomCode(hostCenter, hostDate);
     setRoomCode(code);
     activeRoomCodeRef.current = code;
 

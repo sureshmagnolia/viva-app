@@ -248,10 +248,10 @@ function SyncTab({
                     <input 
                       type="text" 
                       placeholder="e.g. Center 123"
-                      value={projectDetails?.centre || ''}
+                      value={hostCenter}
                       onChange={(e) => {
-                        setProjectDetails(prev => ({ ...prev, centre: e.target.value }));
-                        setCompDetails(prev => ({ ...prev, centre: e.target.value }));
+                        setHostCenter(e.target.value);
+                        localStorage.setItem('viva_host_center', e.target.value);
                       }}
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.3)', color: '#fff' }}
                     />
@@ -270,7 +270,7 @@ function SyncTab({
                     />
                   </div>
 
-                  <button className="btn btn-primary" onClick={initHostPeer} style={{ width: '100%', padding: '12px', fontSize: '1rem', fontWeight: 600 }}>
+                  <button className="btn btn-primary" onClick={() => initHostPeer(hostCenter, hostDate)} style={{ width: '100%', padding: '12px', fontSize: '1rem', fontWeight: 600 }}>
                     Create Sync Room
                   </button>
               </div>
