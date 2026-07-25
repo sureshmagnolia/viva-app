@@ -224,7 +224,7 @@ function App() {
 
   // Track changes into history
   useEffect(() => {
-    if (isInternalHistoryChangeRef.current && !extraFlags.forceBroadcast) return;
+    if (isInternalHistoryChangeRef.current) return;
 
     const currentSnapshot = {
       pd: JSON.parse(JSON.stringify(projectDetails)),
@@ -1181,7 +1181,7 @@ function App() {
 
   // Broadcast state changes whenever local states change while connected
   useEffect(() => {
-    if (isInternalHistoryChangeRef.current && !extraFlags.forceBroadcast) return;
+    if (isInternalHistoryChangeRef.current) return;
     broadcastGlobalState(projectDetails, projectStudents, compDetails, compStudents);
   }, [projectDetails, projectStudents, compDetails, compStudents, deviceRole, deviceName, currentAppTab]);
 
