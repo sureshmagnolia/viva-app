@@ -1,20 +1,23 @@
 import React, { useEffect } from 'react';
 import { calculateExaminerWGP, calculateFinalGradePoint, getFinalGrade } from '../utils/compCalculations';
 
-const CompPrintableMarklist = ({ details, students }) => {
+const CompPrintableMarklist = ({ details, students, previewMode = false }) => {
   useEffect(() => {
-    document.body.classList.add('print-mode');
-    return () => {
-      document.body.classList.remove('print-mode');
-    };
-  }, []);
+    if (!previewMode) {
+      document.body.classList.add('print-mode');
+      return () => {
+        document.body.classList.remove('print-mode');
+      };
+    }
+  }, [previewMode]);
 
   const rowCount = students.length || 1;
   // Dynamically scale vertical padding so fewer rows stretch to fill the page
   const dynamicPadding = Math.max(5, Math.min(18, Math.floor(180 / rowCount)));
 
   return (
-    <div className="printable-marklist">
+    <div className="printable-marklist" style={previewMode ? { boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' } : {}}>
+      {!previewMode && (
       <div className="no-print" style={{ textAlign: 'center', margin: '20px 0' }}>
         <button 
           onClick={() => window.print()} 
@@ -23,6 +26,7 @@ const CompPrintableMarklist = ({ details, students }) => {
           Print Marklist
         </button>
       </div>
+      )}
 
       <div className="print-header">
         <h1 className="print-title">UNIVERSITY OF CALICUT 4 SEM M.Sc. BOTANY (CBCSS) PRACTICAL EXAMINATION, April 2026</h1>
