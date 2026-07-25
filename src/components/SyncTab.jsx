@@ -19,6 +19,9 @@ function SyncTab({
   deviceName = 'My PC', setDeviceName = () => {},
   connectedPeers = {}
 }) {
+  const [hostCenter, setHostCenter] = useState(localStorage.getItem('viva_host_center') || '');
+  const [hostDate, setHostDate] = useState(localStorage.getItem('viva_host_date') || '');
+
   const [activeSubTab, setActiveSubTab] = useState('p2p'); // 'p2p' | 'json'
   const [joinInput, setJoinInput] = useState(() => localStorage.getItem('viva_last_joined_room') || '');
   const [copiedCode, setCopiedCode] = useState(false);
