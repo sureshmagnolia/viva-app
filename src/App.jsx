@@ -224,7 +224,7 @@ function App() {
 
   // Track changes into history
   useEffect(() => {
-    if (isInternalHistoryChangeRef.current) return;
+    if (isInternalHistoryChangeRef.current && !extraFlags.forceBroadcast) return;
 
     const currentSnapshot = {
       pd: JSON.parse(JSON.stringify(projectDetails)),
@@ -276,7 +276,7 @@ function App() {
       if (targetSnapshot.cd) setCompDetails(targetSnapshot.cd);
       if (targetSnapshot.cs) setCompStudents(targetSnapshot.cs);
 
-      broadcastGlobalState(targetSnapshot.pd, targetSnapshot.ps, targetSnapshot.cd, targetSnapshot.cs);
+      broadcastGlobalState(targetSnapshot.pd, targetSnapshot.ps, targetSnapshot.cd, targetSnapshot.cs, { forceBroadcast: true });
 
       setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
     }
@@ -296,7 +296,7 @@ function App() {
       if (targetSnapshot.cd) setCompDetails(targetSnapshot.cd);
       if (targetSnapshot.cs) setCompStudents(targetSnapshot.cs);
 
-      broadcastGlobalState(targetSnapshot.pd, targetSnapshot.ps, targetSnapshot.cd, targetSnapshot.cs);
+      broadcastGlobalState(targetSnapshot.pd, targetSnapshot.ps, targetSnapshot.cd, targetSnapshot.cs, { forceBroadcast: true });
 
       setTimeout(() => { isInternalHistoryChangeRef.current = false; }, 100);
     }
@@ -1148,7 +1148,7 @@ function App() {
   };
 
   const broadcastGlobalState = (pd, ps, cd, cs, extraFlags = {}) => {
-      if (isInternalHistoryChangeRef.current) return;
+      if (isInternalHistoryChangeRef.current && !extraFlags.forceBroadcast) return;
 
       const payload = {
         type: 'GLOBAL_SYNC_STATE',
@@ -1181,7 +1181,7 @@ function App() {
 
   // Broadcast state changes whenever local states change while connected
   useEffect(() => {
-    if (isInternalHistoryChangeRef.current) return;
+    if (isInternalHistoryChangeRef.current && !extraFlags.forceBroadcast) return;
     broadcastGlobalState(projectDetails, projectStudents, compDetails, compStudents);
   }, [projectDetails, projectStudents, compDetails, compStudents, deviceRole, deviceName, currentAppTab]);
 
