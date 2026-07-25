@@ -646,6 +646,7 @@ function App() {
       senderName: deviceName,
       senderActiveTab: currentAppTab,
       timestamp: ts,
+      syncDeletions: !extraFlags.isHeartbeat,
       ...extraFlags
     };
     
@@ -895,8 +896,11 @@ function App() {
     }
 
     conn.on('data', (data) => {
-      if (data && data.type === 'GLOBAL_SYNC_STATE') {
-        addP2pLog(`Host: Received state packet from ${conn.peer}. Relaying to guests and Cloud...`);
+        if (!data) return;
+        handleIncomingPeerState(data, conn.peer);
+
+        if (data.type === 'GLOBAL_SYNC_STATE') {
+          addP2pLog(`Host: Received state packet from ${conn.peer}. Relaying to guests and Cloud...`);
         isInternalHistoryChangeRef.current = true;
         try {
           if (data.timestamp && data.timestamp > lastHttpsTsRef.current) {
@@ -1123,25 +1127,27 @@ function App() {
       senderRole: deviceRole,
       senderName: deviceName,
       senderActiveTab: currentAppTab,
-      timestamp: ts
+      timestamp: ts,
+      syncDeletions: true
     });
   };
 
   const broadcastGlobalState = (pd, ps, cd, cs, extraFlags = {}) => {
-    if (isInternalHistoryChangeRef.current) return;
+      if (isInternalHistoryChangeRef.current) return;
 
-    const payload = {
-      type: 'GLOBAL_SYNC_STATE',
-      projectDetails: pd,
-      projectStudents: ps,
-      compDetails: cd,
-      compStudents: cs,
-      senderRole: deviceRole,
-      senderName: deviceName,
-      senderActiveTab: currentAppTab,
-      timestamp: Date.now(),
-      ...extraFlags
-    };
+      const payload = {
+        type: 'GLOBAL_SYNC_STATE',
+        projectDetails: pd,
+        projectStudents: ps,
+        compDetails: cd,
+        compStudents: cs,
+        senderRole: deviceRole,
+        senderName: deviceName,
+        senderActiveTab: currentAppTab,
+        timestamp: Date.now(),
+        syncDeletions: true,
+        ...extraFlags
+      };
 
     // 2. Broadcast to P2P network peers
     if (isHostRef.current) {
