@@ -240,11 +240,39 @@ function SyncTab({
           {peerStatus === 'disconnected' && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
               <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', padding: '1.5rem', borderRadius: '12px', textAlign: 'center' }}>
-                <h3 style={{ margin: '0 0 0.5rem 0', color: '#38bdf8' }}>Host Examiner (Create Room)</h3>
-                <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '1.25rem' }}>Generate a room code to share with your co-examiner.</p>
-                <button className="btn btn-primary" onClick={initHostPeer} style={{ width: '100%', padding: '12px', fontSize: '1rem', fontWeight: 600 }}>
-                  Create Sync Room
-                </button>
+                <h3 style={{ margin: '0 0 0.5rem 0', color: '#38bdf8', textAlign: 'center' }}>Host Examiner (Create Room)</h3>
+                  <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '1rem', textAlign: 'center' }}>Generate a room code to share with your co-examiner.</p>
+                  
+                  <div style={{ marginBottom: '1rem', textAlign: 'left' }}>
+                    <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.25rem' }}>Center Name / Number</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. Center 123"
+                      value={projectDetails?.centre || ''}
+                      onChange={(e) => {
+                        setProjectDetails(prev => ({ ...prev, centre: e.target.value }));
+                        setCompDetails(prev => ({ ...prev, centre: e.target.value }));
+                      }}
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.3)', color: '#fff' }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '1.5rem', textAlign: 'left' }}>
+                    <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.25rem' }}>Date of Examination</label>
+                    <input 
+                      type="date" 
+                      value={projectDetails?.date || ''}
+                      onChange={(e) => {
+                        setProjectDetails(prev => ({ ...prev, date: e.target.value }));
+                        setCompDetails(prev => ({ ...prev, date: e.target.value }));
+                      }}
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.3)', color: '#fff', colorScheme: 'dark' }}
+                    />
+                  </div>
+
+                  <button className="btn btn-primary" onClick={initHostPeer} style={{ width: '100%', padding: '12px', fontSize: '1rem', fontWeight: 600 }}>
+                    Create Sync Room
+                  </button>
               </div>
 
               <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', padding: '1.5rem', borderRadius: '12px', textAlign: 'center' }}>
