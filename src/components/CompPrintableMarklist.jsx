@@ -11,7 +11,7 @@ const CompPrintableMarklist = ({ details, students }) => {
 
   const rowCount = students.length || 1;
   // Dynamically scale vertical padding so fewer rows stretch to fill the page
-  const dynamicPadding = Math.max(5, Math.min(30, Math.floor(250 / rowCount)));
+  const dynamicPadding = Math.max(1, Math.min(30, Math.floor(120 / rowCount)));
 
   return (
     <div className="printable-marklist">

@@ -13,7 +13,7 @@ const PrintableMarklist = ({ details, students, previewMode = false }) => {
 
   const rowCount = students.length || 1;
   // Dynamically scale vertical padding so fewer rows stretch to fill the page
-  const dynamicPadding = Math.max(3, Math.min(25, Math.floor(250 / rowCount)));
+  const dynamicPadding = Math.max(1, Math.min(25, Math.floor(120 / rowCount)));
 
   return (
     <div className="printable-marklist" style={previewMode ? { boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' } : {}}>

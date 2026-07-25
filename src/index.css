@@ -674,52 +674,54 @@ body.print-mode #root {
 @media screen and (max-width: 768px) {
 
   /* Convert marklist print-table to cards on mobile screen ONLY */
-  .page {
-    width: 100% !important;
-    min-height: auto !important;
-    padding: 15px !important;
-    border: none !important;
-    box-shadow: none !important;
-  }
-  .print-table, .print-table tbody, .print-table tr, .print-table td {
-    display: block;
-    width: 100%;
-  }
-  .print-table thead {
-    display: none; /* Hide original table header */
-  }
-  .print-table tr {
-    margin-bottom: 15px;
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px;
-    background: rgba(15, 23, 42, 0.5);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    overflow: hidden;
-  }
-  .print-table tr.no-border-row {
-    border: none;
-    box-shadow: none;
-    background: transparent;
-    padding: 0;
-  }
-  .print-table td {
-    border: none !important;
-    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
-    padding: 10px !important;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    text-align: right !important;
-  }
-  .print-table td:last-child {
-    border-bottom: none !important;
-  }
-  .print-table td::before {
-    content: attr(data-label);
-    font-weight: 600;
-    text-align: left;
-    margin-right: 15px;
-    color: #94a3b8;
-  }
-
+    .page {
+      width: 100% !important;
+      min-height: auto !important;
+      padding: 15px !important;
+      border: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+    }
+    .print-table, .print-table tbody, .print-table tr, .print-table td {
+      display: block !important;
+      width: 100% !important;
+    }
+    .print-table thead {
+      display: none !important;
+    }
+    .print-table tr {
+      margin-bottom: 15px !important;
+      border: 1px solid rgba(255,255,255,0.15) !important;
+      border-radius: 12px !important;
+      background: rgba(15, 23, 42, 0.6) !important;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2) !important;
+      overflow: hidden !important;
+    }
+    .print-table tr.no-border-row {
+      border: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      padding: 0 !important;
+    }
+    .print-table td {
+      border: none !important;
+      border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+      padding: 12px 15px !important;
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      text-align: right !important;
+      color: #f1f5f9 !important; /* Force light text for dark cards */
+      font-size: 1rem !important;
+    }
+    .print-table td:last-child {
+      border-bottom: none !important;
+    }
+    .print-table td::before {
+      content: attr(data-label);
+      font-weight: 600 !important;
+      text-align: left !important;
+      margin-right: 15px !important;
+      color: #94a3b8 !important;
+    }
 }
