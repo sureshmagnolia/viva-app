@@ -55,8 +55,8 @@ export const calculateStudentScores = (student) => {
   }
   const vivaTotal = vivaAvgGrade * 6;
 
-  const total150 = dissertationTotal + presentationTotal + vivaTotal;
-  const total200 = (total150 / 150) * 200;
+  const total150 = Math.round(dissertationTotal + presentationTotal + vivaTotal);
+  const total200 = Math.round((total150 / 150) * 200);
 
   return {
     dissertationTotal,

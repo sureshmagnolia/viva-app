@@ -9,11 +9,15 @@ export const calculateExaminerWGP = (grades) => {
   return total;
 };
 
-export const calculateFinalGradePoint = (student) => {
+export const calculateFinalWGP = (student) => {
   const ex1Wgp = calculateExaminerWGP(student.ex1);
   const ex2Wgp = calculateExaminerWGP(student.ex2);
-  const averageWgp = (ex1Wgp + ex2Wgp) / 2;
-  const gradePoint = averageWgp / 30; // Out of 5
+  return Math.round((ex1Wgp + ex2Wgp) / 2);
+};
+
+export const calculateFinalGradePoint = (student) => {
+  const finalWgp = calculateFinalWGP(student);
+  const gradePoint = finalWgp / 30; // Out of 5
   return gradePoint;
 };
 

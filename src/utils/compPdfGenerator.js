@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { calculateExaminerWGP, calculateFinalGradePoint, getFinalGrade } from './compCalculations';
+import { calculateExaminerWGP, calculateFinalWGP, calculateFinalGradePoint, getFinalGrade } from './compCalculations';
 
 export const generateCompPDF = (details, students) => {
   const doc = new jsPDF();
@@ -24,9 +24,7 @@ export const generateCompPDF = (details, students) => {
 
   // Table Data
   const tableData = students.map((student) => {
-    const ex1Wgp = calculateExaminerWGP(student.ex1);
-    const ex2Wgp = calculateExaminerWGP(student.ex2);
-    const finalWgp = (ex1Wgp + ex2Wgp) / 2;
+    const finalWgp = calculateFinalWGP(student);
 
     return [
       student.registerNumber,

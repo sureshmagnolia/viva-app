@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { calculateExaminerWGP, calculateFinalGradePoint, getFinalGrade } from '../utils/compCalculations';
+import { calculateExaminerWGP, calculateFinalWGP, calculateFinalGradePoint, getFinalGrade } from '../utils/compCalculations';
 
 const CompPrintableMarklist = ({ details, students, previewMode = false }) => {
   useEffect(() => {
@@ -49,9 +49,7 @@ const CompPrintableMarklist = ({ details, students, previewMode = false }) => {
         </thead>
         <tbody>
           {students.map((student) => {
-            const ex1Wgp = calculateExaminerWGP(student.ex1);
-            const ex2Wgp = calculateExaminerWGP(student.ex2);
-            const finalWgp = (ex1Wgp + ex2Wgp) / 2;
+            const finalWgp = calculateFinalWGP(student);
 
             return (
               <tr key={student.id}>

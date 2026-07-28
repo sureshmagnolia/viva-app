@@ -118,7 +118,7 @@ const MarksTable = ({ students, setStudents }) => {
                     <div style={{ width: '1px', height: '100%', background: 'rgba(255, 255, 255, 0.1)' }}></div>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>In 200</div>
-                      <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#60a5fa' }}>{scores.total200 > 0 ? scores.total200.toFixed(2) : '-'}</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#60a5fa' }}>{scores.total200 > 0 ? Math.round(scores.total200) : '-'}</div>
                     </div>
                   </div>
                 </div>

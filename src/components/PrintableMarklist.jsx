@@ -69,7 +69,7 @@ const PrintableMarklist = ({ details, students, previewMode = false }) => {
                 <td data-label="Presentation (20)" style={{ textAlign: 'center', padding: `${dynamicPadding}px 4px` }}>{scores.presentationTotal > 0 ? scores.presentationTotal : ''}</td>
                 <td data-label="Viva (30)" style={{ textAlign: 'center', padding: `${dynamicPadding}px 4px` }}>{scores.vivaTotal > 0 ? scores.vivaTotal : ''}</td>
                 <td data-label="Total (150)" style={{ textAlign: 'center', padding: `${dynamicPadding}px 4px` }}>{scores.total150 > 0 ? scores.total150 : ''}</td>
-                <td data-label="Final (200)" style={{ textAlign: 'center', padding: `${dynamicPadding}px 4px` }}>{scores.total200 > 0 ? scores.total200.toFixed(2) : ''}</td>
+                <td data-label="Final (200)" style={{ textAlign: 'center', padding: `${dynamicPadding}px 4px` }}>{scores.total200 > 0 ? Math.round(scores.total200) : ''}</td>
                 <td data-label="% of marks" style={{ padding: `${dynamicPadding}px 4px` }}></td>
                 <td data-label="Grade" style={{ padding: `${dynamicPadding}px 4px` }}></td>
               </tr>

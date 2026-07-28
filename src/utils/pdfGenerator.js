@@ -61,7 +61,7 @@ export const generatePDF = (details, students) => {
       scores.presentationTotal > 0 ? scores.presentationTotal.toString() : '',
       scores.vivaTotal > 0 ? scores.vivaTotal.toString() : '',
       scores.total150 > 0 ? scores.total150.toString() : '',
-      scores.total200 > 0 ? parseFloat(scores.total200.toFixed(2)).toString() : '',
+      scores.total200 > 0 ? Math.round(scores.total200).toString() : '',
       '', // Signature 1 empty space
       ''  // Signature 2 empty space
     ];
